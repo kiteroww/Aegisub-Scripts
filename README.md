@@ -44,3 +44,25 @@ A versatile Aegisub script that allows you to move ASS tags between the text and
 2. Run "Froggie Tags/Extract" to move tags to the effects field
 3. Edit or manipulate the text content as needed
 4. Run "Froggie Tags/Reinsert" to restore the tags to the text field
+
+# Chronorow Master
+
+## Description
+Chronorow Master is an Aegisub macro that streamlines subtitle timing with keyframe tagging, smart text splitting, karaoke tag generation, and CPS tools.
+
+## Features
+- **Keyframe Seal**: Adds `[KF]` if a line ends on a video keyframe.
+- **Twin / Missing**: Tags lines when a keyframe is found within a specified ms window before the end.
+- **Overtime**: Marks lines exceeding a set duration.
+- **Overlap Alert**: Flags overlapping subtitle lines.
+- **Divine Dividing**: Splits sentences by punctuation and distributes time proportionally.
+- **Vision Only**: Previews splits by tagging with `[2S]`/`[3S]` instead of splitting.
+- **Comma Blessed**: Treats commas and semicolons as split points.
+- **Line Cleaver (`\N`)**: Splits on `\N` and divides time evenly.
+- **Kana-Beat (`{\k}`)**: Generates karaoke tags based on romaji syllables.
+- **CPS Ranker / Avg**: Sorts lines by chars-per-second and shows average CPS.
+- **Extract KFs**: Uses FFmpeg + SCXvid to generate a keyframe log file.
+- **Preset “Kite”**: Loads default timing values (Twin=1000ms, Missing=1000ms, Overtime=5500ms).
+
+
+
