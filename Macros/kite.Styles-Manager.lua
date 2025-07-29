@@ -1,616 +1,79 @@
 script_name = "Kite Styles Manager"
-script_description = "Multiple actor style management"
+script_description = "Gestión inteligente de colores por actor con soporte ASS y VSFilterMod"
 script_author = "Kiterow"
-script_version = "1.4"
+script_version = "3.4"
+menu_embedding = "Kite Styles Manager/"
 
-actor_styles = {}
-actor_ui_values = {}
+function bgr_to_hex(bgr_string) local bgr = bgr_string:match("&H([%x]+)&") or bgr_string:match("([%x]+)") if not bgr then return nil end local num = tonumber(bgr, 16) if not num then return nil end local b = math.floor(num / 65536) % 256 local g = math.floor(num / 256) % 256 local r = num % 256 return string.format("#%02X%02X%02X", r, g, b) end
 
-function ass_to_rgb(ass_color)
-    local b, g, r = ass_color:match("&H(%x%x)(%x%x)(%x%x)&")
-    if r and g and b then
-        return "#" .. r .. g .. b
-    else
-        return "#FFFFFF"
-    end
-end
+function hex_to_bgr(hex_string) local hex = hex_string:match("#([%x]+)") or hex_string:match("([%x]+)") if not hex then return nil end if #hex == 3 then hex = hex:gsub("(.)", "%1%1") end if #hex ~= 6 then return nil end local r = tonumber(hex:sub(1,2), 16) local g = tonumber(hex:sub(3,4), 16) local b = tonumber(hex:sub(5,6), 16) if not r or not g or not b then return nil end local bgr = b * 65536 + g * 256 + r return string.format("&H%06X&", bgr) end
 
-function rgb_to_ass(color)
-    if not color or type(color) ~= "string" or not color:match("^#%x%x%x%x%x%x$") then
-        return "&HFFFFFF&"
-    end
-    local r, g, b = color:match("#(%x%x)(%x%x)(%x%x)")
-    return string.format("&H%02X%02X%02X&", tonumber(b,16), tonumber(g,16), tonumber(r,16))
-end
+function validate_color(color_string) if not color_string or color_string == "" then return nil end if color_string:match("^#[%x]+$") then local hex = color_string:sub(2) if #hex == 3 or #hex == 6 then return color_string:upper() end end if color_string:match("^&H[%x]+&$") then return bgr_to_hex(color_string) end if color_string:match("^[%x]+$") and (#color_string == 3 or #color_string == 6) then return "#" .. color_string:upper() end return nil end
 
-function parse_tags(text)
-    local tags = {}
-    local tagblock = text:match("^{(.-)}")
-    if tagblock then
-        local blur = tagblock:match("\\blur([%d%.]+)")
-        if blur then tags.blur = tonumber(blur) end
-        local be = tagblock:match("\\be([%d%.]+)")
-        if be then tags.be = tonumber(be) end
-        local shad = tagblock:match("\\shad([%d%.]+)")
-        if shad then tags.shad = tonumber(shad) end
-        local bord = tagblock:match("\\bord([%d%.]+)")
-        if bord then tags.bord = tonumber(bord) end
-        local xshad = tagblock:match("\\xshad([%-%d%.]+)")
-        if xshad then tags.xshad = tonumber(xshad) end
-        local yshad = tagblock:match("\\yshad([%-%d%.]+)")
-        if yshad then tags.yshad = tonumber(yshad) end
-        local alpha = tagblock:match("\\alpha(&H%x%x&)")
-        if alpha then tags.alpha = alpha end
-        local fsp = tagblock:match("\\fsp([%-%d%.]+)")
-        if fsp then tags.fsp = tonumber(fsp) end
-        local fscx = tagblock:match("\\fscx([%d%.]+)")
-        if fscx then tags.fscx = tonumber(fscx) end
-        local fscy = tagblock:match("\\fscy([%d%.]+)")
-        if fscy then tags.fscy = tonumber(fscy) end
-        for i = 1, 4 do
-            local pattern = "\\" .. i .. "c(&H%x+&)"
-            local ass_color = tagblock:match(pattern)
-            if ass_color then 
-                tags[i.."c"] = ass_to_rgb(ass_color)
-                tags["mod" .. i .. "c"] = true
-            end
-            local alpha_pattern = "\\" .. i .. "a(&H%x%x&)"
-            local color_alpha = tagblock:match(alpha_pattern)
-            if color_alpha then 
-                tags[i.."a"] = color_alpha 
-            end
-        end
-    end
-    return tags
-end
+function parse_vsfilter_colors(color_string) if not color_string then return nil end local colors = {} for color in color_string:gmatch("([^,]+)") do local valid_color = validate_color(color:match("^%s*(.-)%s*$")) if not valid_color then return nil end table.insert(colors, valid_color) end return #colors == 4 and colors or nil end
 
-function load_actor_styles(subs)
-    local styles = {}
-    local default_values = {
-        blur = 0, be = 0, shad = 0, bord = 0,
-        xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-        alpha = "&H00&",
-        ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-        ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-        ["1a"] = "&H00&", ["2a"] = "&H00&",
-        ["3a"] = "&H00&", ["4a"] = "&H00&",
-        mod1c = false, mod2c = false, mod3c = false, mod4c = false
-    }
-    for i = 1, #subs do
-        if subs[i].class == "dialogue" then
-            local actor = subs[i].actor
-            if actor == "" then actor = "No Actor" end
-            if not styles[actor] then
-                styles[actor] = {}
-                for k, v in pairs(default_values) do
-                    styles[actor][k] = v
-                end
-            end
-            local parsed = parse_tags(subs[i].text)
-            for k, v in pairs(parsed) do
-                if styles[actor][k] == default_values[k] then
-                    styles[actor][k] = v
-                end
-            end
-            for i = 1, 4 do
-                if styles[actor]["mod" .. i .. "c"] == nil then
-                    styles[actor]["mod" .. i .. "c"] = false
-                end
-            end
-        end
-    end
-    return styles
-end
+function format_vsfilter_colors(colors) if not colors or #colors ~= 4 then return "" end return table.concat(colors, ",") end
 
-function build_style_string(new, original)
-    local tags = {}
-    local numeric_tags = {
-        blur = "\\blur%.1f", be = "\\be%.1f",
-        bord = "\\bord%.1f", shad = "\\shad%.1f",
-        xshad = "\\xshad%.1f", yshad = "\\yshad%.1f",
-        fsp = "\\fsp%.1f"
-    }
-    for tag, format in pairs(numeric_tags) do
-        if new[tag] and new[tag] ~= 0 and (not original[tag] or new[tag] ~= original[tag]) then
-            table.insert(tags, string.format(format, new[tag]))
-        end
-    end
-    if new.fscx and new.fscx ~= 100 and (not original.fscx or new.fscx ~= original.fscx) then
-        table.insert(tags, string.format("\\fscx%.1f", new.fscx))
-    end
-    if new.fscy and new.fscy ~= 100 and (not original.fscy or new.fscy ~= original.fscy) then
-        table.insert(tags, string.format("\\fscy%.1f", new.fscy))
-    end
-    if new.alpha and new.alpha ~= "&H00&" and (not original.alpha or new.alpha ~= original.alpha) then
-        table.insert(tags, "\\alpha" .. new.alpha)
-    end
-    for i = 1, 4 do
-        local tag = i.."c"
-        if new["mod" .. i .. "c"] then
-            table.insert(tags, "\\" .. tag .. rgb_to_ass(new[tag]))
-        end
-        local alpha_tag = i.."a"
-        if new[alpha_tag] and new[alpha_tag] ~= "&H00&" and (not original[alpha_tag] or new[alpha_tag] ~= original[alpha_tag]) then
-            table.insert(tags, "\\" .. alpha_tag .. new[alpha_tag])
-        end
-    end
-    return table.concat(tags)
-end
+function extract_tags_with_positions(text) local tags = {} local clean_text = "" local pos = 1 local clean_pos = 1 while pos <= #text do local tag_start, tag_end = text:find("{\\[^}]*}", pos) if tag_start then if tag_start > pos then local segment = text:sub(pos, tag_start - 1) clean_text = clean_text .. segment clean_pos = clean_pos + #segment end local tag_content = text:sub(tag_start, tag_end) table.insert(tags, {content = tag_content, position = clean_pos, original_pos = tag_start}) pos = tag_end + 1 else clean_text = clean_text .. text:sub(pos) break end end return tags, clean_text end
 
--- Save changes for all actors; only insert a tag block if nonempty.
-function save_all_changes(subs, sel, actors)
-    local total = 0
-    local neutral = {
-        blur = 0, be = 0, shad = 0, bord = 0,
-        xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-        alpha = "&H00&",
-        ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-        ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-        ["1a"] = "&H00&", ["2a"] = "&H00&",
-        ["3a"] = "&H00&", ["4a"] = "&H00&"
-    }
-    local known_tags = {"blur","be","shad","bord","xshad","yshad","fsp","fscx","fscy","alpha",
-                          "1c","2c","3c","4c","1a","2a","3a","4a"}
-    for _, actor in ipairs(actors) do
-        local style = actor_styles[actor] or neutral
-        local style_str = build_style_string(style, neutral)
-        for _, i in ipairs(sel) do
-            local line = subs[i]
-            if line.actor == actor or (actor == "No Actor" and line.actor == "") then
-                local original_tagblock = line.text:match("^{(.-)}") or ""
-                for _, tag in ipairs(known_tags) do
-                    original_tagblock = original_tagblock:gsub("\\" .. tag .. "[^\\}]*", "")
-                end
-                local rest = line.text:gsub("^{[^}]*}", "")
-                local new_tagblock = style_str .. original_tagblock
-                if new_tagblock == "" then
-                    line.text = rest
-                else
-                    line.text = "{" .. new_tagblock .. "}" .. rest
-                end
-                subs[i] = line
-                total = total + 1
-            end
-        end
-    end
-    return total
-end
+function extract_ass_colors(tags) local colors = {} local color_patterns = {["c"] = "\\c&H([%x]+)&", ["1c"] = "\\1c&H([%x]+)&", ["2c"] = "\\2c&H([%x]+)&", ["3c"] = "\\3c&H([%x]+)&", ["4c"] = "\\4c&H([%x]+)&"} for _, tag in ipairs(tags) do for color_type, pattern in pairs(color_patterns) do local color_value = tag.content:match(pattern) if color_value then colors[color_type] = bgr_to_hex("&H" .. color_value .. "&") end end end return colors end
 
-function save_styles(styles)
-    local filename = aegisub.file_name()
-    if not filename then 
-        aegisub.dialog.display({{class="label", x=0, y=0, label="File not saved. Please save it first."}}, {"OK"})
-        return false
-    end
-    local path = aegisub.decode_path("?script/" .. filename:gsub("%..-$", "") .. " [Kite Styles].txt")
-    local save_dialog = {
-        {class="label", x=0, y=0, label="Save styles as:"},
-        {class="edit", x=0, y=1, width=40, name="file_path", value=path}
-    }
-    local save_buttons = {"Save", "Cancel"}
-    local save_pressed, save_result = aegisub.dialog.display(save_dialog, save_buttons)
-    if save_pressed == "Cancel" then return false end
-    path = save_result.file_path
-    local file, err = io.open(path, "w")
-    if not file then
-        aegisub.dialog.display({{class="label", x=0, y=0, label="Error saving file: " .. (err or "unknown")}}, {"OK"})
-        return false
-    end
-    for actor, tag_str in pairs(styles) do
-        file:write(string.format("%s: %s\n", actor, tag_str))
-    end
-    file:close()
-    aegisub.dialog.display({{class="label", x=0, y=0, label="Styles saved in:\n" .. path}}, {"OK"})
-    return true
-end
+function extract_vsfilter_colors(tags) local colors = {} local vsf_patterns = {["1vc"] = "\\1vc%(([^)]+)%)", ["2vc"] = "\\2vc%(([^)]+)%)", ["3vc"] = "\\3vc%(([^)]+)%)", ["4vc"] = "\\4vc%(([^)]+)%)"} for _, tag in ipairs(tags) do for color_type, pattern in pairs(vsf_patterns) do local color_values = tag.content:match(pattern) if color_values then local parsed_colors = parse_vsfilter_colors(color_values) if parsed_colors then colors[color_type] = parsed_colors end end end end return colors end
 
-function parse_style_string(style_str)
-    local style = {
-        blur = 0, be = 0, shad = 0, bord = 0,
-        xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-        alpha = "&H00&",
-        ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-        ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-        ["1a"] = "&H00&", ["2a"] = "&H00&",
-        ["3a"] = "&H00&", ["4a"] = "&H00&"
-    }
-    local blur = style_str:match("\\blur([%d%.]+)")
-    if blur then style.blur = tonumber(blur) end
-    local be = style_str:match("\\be([%d%.]+)")
-    if be then style.be = tonumber(be) end
-    local shad = style_str:match("\\shad([%d%.]+)")
-    if shad then style.shad = tonumber(shad) end
-    local bord = style_str:match("\\bord([%d%.]+)")
-    if bord then style.bord = tonumber(bord) end
-    local xshad = style_str:match("\\xshad([%-%d%.]+)")
-    if xshad then style.xshad = tonumber(xshad) end
-    local yshad = style_str:match("\\yshad([%-%d%.]+)")
-    if yshad then style.yshad = tonumber(yshad) end
-    local fscx = style_str:match("\\fscx([%d%.]+)")
-    if fscx then style.fscx = tonumber(fscx) end
-    local fscy = style_str:match("\\fscy([%d%.]+)")
-    if fscy then style.fscy = tonumber(fscy) end
-    local fsp = style_str:match("\\fsp([%-%d%.]+)")
-    if fsp then style.fsp = tonumber(fsp) end
-    local alpha = style_str:match("\\alpha(&H%x%x&)")
-    if alpha then style.alpha = alpha end
-    for i = 1, 4 do
-        local pattern = "\\" .. i .. "c(&H%x+&)"
-        local ass_color = style_str:match(pattern)
-        if ass_color then 
-            style[i.."c"] = ass_to_rgb(ass_color)
-            style["mod" .. i .. "c"] = true
-        else
-            style["mod" .. i .. "c"] = false
-        end
-        local alpha_pattern = "\\" .. i .. "a(&H%x%x&)"
-        local color_alpha = style_str:match(alpha_pattern)
-        if color_alpha then style[i.."a"] = color_alpha end
-    end
-    return style
-end
+local function srgb_to_linear(c) c=c/255 return (c<=0.04045) and (c/12.92) or ((c+0.055)/1.055)^2.4 end
+function relative_luminance(hex) local r=tonumber(hex:sub(2,3),16) local g=tonumber(hex:sub(4,5),16) local b=tonumber(hex:sub(6,7),16) return 0.2126*srgb_to_linear(r)+0.7152*srgb_to_linear(g)+0.0722*srgb_to_linear(b) end
+function contrast_ratio(h1,h2) local l1,l2=relative_luminance(h1),relative_luminance(h2) if l1<l2 then l1,l2=l2,l1 end return (l1+0.05)/(l2+0.05) end
 
-function load_styles(subs, sel, actor_list)
-    local suggested_path = ""
-    local filename = aegisub.file_name()
-    if filename then
-        suggested_path = aegisub.decode_path("?script/" .. filename:gsub("%..-$", "") .. " [Kite Styles].txt")
-    end
-    local dialog_config = {
-        {class="label", x=0, y=0, label="Select styles file:"},
-        {class="edit", x=0, y=1, width=40, name="file_path", value=suggested_path}
-    }
-    local button, result = aegisub.dialog.display(dialog_config, {"Load", "Cancel"})
-    if button == "Cancel" then return false end
-    local path = result.file_path
-    local file, err = io.open(path, "r")
-    if not file then
-        aegisub.dialog.display({{class="label", x=0, y=0, label="Styles file not found:\n" .. path}}, {"OK"})
-        return false
-    end
-    local loaded_styles = {}
-    for line in file:lines() do
-        local actor, style_str = line:match("^([^:]+):%s*(.+)$")
-        if actor and style_str then
-            loaded_styles[actor] = parse_style_string(style_str)
-        end
-    end
-    file:close()
-    local missing_actors = {}
-    for _, actor in ipairs(actor_list) do
-        if not loaded_styles[actor] then
-            table.insert(missing_actors, actor)
-        end
-    end
-    local extra_actors = {}
-    for actor in pairs(loaded_styles) do
-        if not table.contains(actor_list, actor) then
-            table.insert(extra_actors, actor)
-        end
-    end
-    local log_text = ""
-    if #missing_actors > 0 then
-        log_text = log_text .. "Actors not present in the styles file:\n" .. table.concat(missing_actors, "\n") .. "\n\n"
-    end
-    if #extra_actors > 0 then
-        log_text = log_text .. "Actors in the file but not in the selection:\n" .. table.concat(extra_actors, "\n")
-    end
-    if log_text == "" then
-        log_text = "All actors loaded correctly."
-    end
-    for actor, style in pairs(loaded_styles) do
-        actor_styles[actor] = style
-        actor_ui_values[actor] = deepcopy(style)
-    end
-    local modified_count = 0
-    local neutral = {
-        blur = 0, be = 0, shad = 0, bord = 0,
-        xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-        alpha = "&H00&",
-        ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-        ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-        ["1a"] = "&H00&", ["2a"] = "&H00&",
-        ["3a"] = "&H00&", ["4a"] = "&H00&",
-        mod1c = false, mod2c = false, mod3c = false, mod4c = false
-    }
-    local known_tags = {"blur","be","shad","bord","xshad","yshad","fsp","fscx","fscy","alpha",
-                          "1c","2c","3c","4c","1a","2a","3a","4a"}
-    for _, i in ipairs(sel) do
-        local line = subs[i]
-        local actor = (line.actor == "" and "No Actor") or line.actor
-        if actor_styles[actor] then
-            local original_tagblock = line.text:match("^{(.-)}") or ""
-            for _, tag in ipairs(known_tags) do
-                original_tagblock = original_tagblock:gsub("\\" .. tag .. "[^\\}]*", "")
-            end
-            local rest = line.text:gsub("^{[^}]*}", "")
-            local combined_tags = build_style_string(actor_styles[actor], neutral) .. original_tagblock
-            if combined_tags == "" then
-                line.text = rest
-            else
-                line.text = "{" .. combined_tags .. "}" .. rest
-            end
-            subs[i] = line
-            modified_count = modified_count + 1
-        end
-    end
-    log_text = log_text .. "\n\nModified lines: " .. modified_count
-    aegisub.dialog.display({{class="textbox", x=0, y=0, width=40, height=10, name="log", value=log_text}}, {"OK"})
-    aegisub.set_undo_point("Load Styles")
-    return true
-end
+function analyze_lines_by_actor(subs, sel) local actor_data = {} local processing_errors = {} for _, i in ipairs(sel) do local line = subs[i] if line.class == "dialogue" then local actor = line.actor or "Sin Actor" if not actor_data[actor] then actor_data[actor] = {lines = {}, ass_colors = {}, vsf_colors = {}, conflicts = {ass = {}, vsf = {}}} end local tags, clean_text = extract_tags_with_positions(line.text) local ass_colors = extract_ass_colors(tags) local vsf_colors = extract_vsfilter_colors(tags) table.insert(actor_data[actor].lines, {index = i, tags = tags, clean_text = clean_text, original_text = line.text, ass_colors = ass_colors, vsf_colors = vsf_colors}) for color_type, color_value in pairs(ass_colors) do if actor_data[actor].ass_colors[color_type] then if actor_data[actor].ass_colors[color_type] ~= color_value then if not actor_data[actor].conflicts.ass[color_type] then actor_data[actor].conflicts.ass[color_type] = {actor_data[actor].ass_colors[color_type]} end local found = false for _, existing in ipairs(actor_data[actor].conflicts.ass[color_type]) do if existing == color_value then found = true break end end if not found then table.insert(actor_data[actor].conflicts.ass[color_type], color_value) end end else actor_data[actor].ass_colors[color_type] = color_value end end for color_type, color_values in pairs(vsf_colors) do if actor_data[actor].vsf_colors[color_type] then local existing = format_vsfilter_colors(actor_data[actor].vsf_colors[color_type]) local current = format_vsfilter_colors(color_values) if existing ~= current then if not actor_data[actor].conflicts.vsf[color_type] then actor_data[actor].conflicts.vsf[color_type] = {existing} end local found = false for _, conflict in ipairs(actor_data[actor].conflicts.vsf[color_type]) do if conflict == current then found = true break end end if not found then table.insert(actor_data[actor].conflicts.vsf[color_type], current) end end else actor_data[actor].vsf_colors[color_type] = color_values end end end end return actor_data end
 
-function table.contains(tbl, val)
-    for _, v in ipairs(tbl) do
-        if v == val then
-            return true
-        end
-    end
-    return false
-end
+function generate_actor_list(actor_data) local actors = {} for actor, _ in pairs(actor_data) do table.insert(actors, actor) end table.sort(actors) return table.concat(actors, "\n") end
 
-function deepcopy(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
-        end
-        setmetatable(copy, deepcopy(getmetatable(orig)))
-    else
-        copy = orig
-    end
-    return copy
-end
+function generate_color_assignments(actor_data) local assignments = {} local actors = {} for actor, _ in pairs(actor_data) do table.insert(actors, actor) end table.sort(actors) for _, actor in ipairs(actors) do local data = actor_data[actor] local line_parts = {actor .. ":"} local ass_parts = {} for _, color_type in ipairs({"c", "1c", "2c", "3c", "4c"}) do if data.ass_colors[color_type] then table.insert(ass_parts, color_type .. "=" .. data.ass_colors[color_type]) end end if #ass_parts > 0 then table.insert(line_parts, table.concat(ass_parts, " ")) end local vsf_parts = {} for _, color_type in ipairs({"1vc", "2vc", "3vc", "4vc"}) do if data.vsf_colors[color_type] then table.insert(vsf_parts, color_type .. "=" .. format_vsfilter_colors(data.vsf_colors[color_type])) end end if #vsf_parts > 0 then table.insert(line_parts, table.concat(vsf_parts, " ")) end if #line_parts == 1 then table.insert(line_parts, "(sin colores)") end table.insert(assignments, table.concat(line_parts, " ")) end return table.concat(assignments, "\n") end
 
-function get_actors_from_selection(subs, sel)
-    local actors = {}
-    local actor_count = {}
-    for _, i in ipairs(sel) do
-        local line = subs[i]
-        if line.class == "dialogue" then
-            local actor_name = line.actor
-            if actor_name == "" then actor_name = "No Actor" end
-            if not actor_count[actor_name] then
-                actor_count[actor_name] = 1
-                table.insert(actors, actor_name)
-            else
-                actor_count[actor_name] = actor_count[actor_name] + 1
-            end
-        end
-    end
-    table.sort(actors, function(a, b)
-        if a == "No Actor" then return true
-        elseif b == "No Actor" then return false
-        else return a < b end
-    end)
-    return actors, actor_count
-end
+function parse_color_assignments(assignment_text, actor_data) local new_assignments = {} for line in assignment_text:gmatch("[^\r\n]+") do local actor = line:match("^([^:]+):") if actor and actor_data[actor] then new_assignments[actor] = {ass_colors = {}, vsf_colors = {}} for color_type, color_value in line:gmatch("([1-4]c)=([^%s]+)") do local valid_color = validate_color(color_value) if valid_color then new_assignments[actor].ass_colors[color_type] = valid_color end end for color_value in line:gmatch("([^1-4])c=([^%s]+)") do local valid_color = validate_color(color_value) if valid_color then new_assignments[actor].ass_colors["c"] = valid_color end end local c_start = line:match(": *c=([^%s]+)") if c_start then local valid_color = validate_color(c_start) if valid_color then new_assignments[actor].ass_colors["c"] = valid_color end end for color_type, color_values in line:gmatch("([1-4]vc)=([^%s]+)") do local parsed_colors = parse_vsfilter_colors(color_values) if parsed_colors then new_assignments[actor].vsf_colors[color_type] = parsed_colors end end end end return new_assignments end
 
-function update_dialog_for_actor(actor, config)
-    local current_style = actor_ui_values[actor] or actor_styles[actor] or {
-        blur = 0, be = 0, shad = 0, bord = 0,
-        xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-        alpha = "&H00&",
-        ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-        ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-        ["1a"] = "&H00&", ["2a"] = "&H00&",
-        ["3a"] = "&H00&", ["4a"] = "&H00&",
-        mod1c = false, mod2c = false, mod3c = false, mod4c = false
-    }
-    for _, field in ipairs({"blur", "be", "bord", "shad", "xshad", "yshad", "fsp", "fscx", "fscy"}) do
-        for i, control in ipairs(config) do
-            if control.name == field then
-                config[i].value = current_style[field] or ((field=="fscx" or field=="fscy") and 100 or 0)
-            end
-        end
-    end
-    for i, control in ipairs(config) do
-        if control.name == "alpha" then
-            config[i].value = current_style.alpha or "&H00&"
-        end
-    end
-    for i = 1, 4 do
-        for j, control in ipairs(config) do
-            if control.name == "c" .. i then
-                config[j].value = current_style[i.."c"] or "#FFFFFF"
-            end
-        end
-        for j, control in ipairs(config) do
-            if control.name == "mod" .. i .. "c" then
-                config[j].value = current_style["mod" .. i .. "c"] or false
-            end
-        end
-        for j, control in ipairs(config) do
-            if control.name == "a" .. i then
-                config[j].value = current_style[i.."a"] or "&H00&"
-            end
-        end
-    end
-    return config
-end
+function remove_color_tags(text)local cleaned=text:gsub("\\c&H[%x]+&",""):gsub("\\[1-4]c&H[%x]+&",""):gsub("\\[1-4]vc%([^)]+%)",""):gsub("{%s*}","")return cleaned end
 
-function main(subs, sel)
-    if #sel == 0 then
-        aegisub.dialog.display({{class="label", x=0, y=0, label="No lines selected."}}, {"OK"})
-        return
-    end
-    actor_styles = load_actor_styles(subs)
-    local actors, actor_count = get_actors_from_selection(subs, sel)
-    if #actors == 0 then
-        actors = {"No Actor"}
-        actor_styles["No Actor"] = {
-            blur = 0, be = 0, shad = 0, bord = 0,
-            xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-            alpha = "&H00&",
-            ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-            ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-            ["1a"] = "&H00&", ["2a"] = "&H00&",
-            ["3a"] = "&H00&", ["4a"] = "&H00&",
-            mod1c = false, mod2c = false, mod3c = false, mod4c = false
-        }
-    end
-    if next(actor_ui_values) == nil then
-        for _, actor in ipairs(actors) do
-            actor_ui_values[actor] = deepcopy(actor_styles[actor] or {
-                blur = 0, be = 0, shad = 0, bord = 0,
-                xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-                alpha = "&H00&",
-                ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-                ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-                ["1a"] = "&H00&", ["2a"] = "&H00&",
-                ["3a"] = "&H00&", ["4a"] = "&H00&",
-                mod1c = false, mod2c = false, mod3c = false, mod4c = false
-            })
-        end
-    end
-    local current_actor = actors[1]
-    local actor_labels = {}
-    for i, actor in ipairs(actors) do
-        local count = actor_count[actor] or 0
-        actor_labels[i] = actor .. " (" .. count .. " lines)"
-    end
-    local config_base = {
-        {class="label", x=0, y=0, width=1, height=1, label="Actor:"},
-        {class="dropdown", name="selected_actor", x=1, y=0, width=4, height=1, items=actor_labels, value=current_actor .. " (" .. (actor_count[current_actor] or 0) .. " lines)"},
-        {class="label", x=0, y=1, width=5, height=1, label="Basic Effects:", bold=true},
-        {class="label", x=0, y=2, width=1, height=1, label="Blur:"},
-        {class="floatedit", x=1, y=2, width=1, height=1, name="blur", value=0, min=0},
-        {class="label", x=2, y=2, width=1, height=1, label="Be:"},
-        {class="floatedit", x=3, y=2, width=1, height=1, name="be", value=0, min=0},
-        {class="label", x=0, y=3, width=1, height=1, label="Border:"},
-        {class="floatedit", x=1, y=3, width=1, height=1, name="bord", value=0, min=0},
-        {class="label", x=2, y=3, width=1, height=1, label="Shadow:"},
-        {class="floatedit", x=3, y=3, width=1, height=1, name="shad", value=0, min=0},
-        {class="label", x=0, y=4, width=5, height=1, label="Advanced Shadows:", bold=true},
-        {class="label", x=0, y=5, width=1, height=1, label="X Shadow:"},
-        {class="floatedit", x=1, y=5, width=1, height=1, name="xshad", value=0},
-        {class="label", x=2, y=5, width=1, height=1, label="Y Shadow:"},
-        {class="floatedit", x=3, y=5, width=1, height=1, name="yshad", value=0},
-        {class="label", x=0, y=6, width=5, height=1, label="Text Format:", bold=true},
-        {class="label", x=0, y=7, width=1, height=1, label="Spacing:"},
-        {class="floatedit", x=1, y=7, width=1, height=1, name="fsp", value=0},
-        {class="label", x=2, y=7, width=1, height=1, label="Global Alpha:"},
-        {class="edit", x=3, y=7, width=1, height=1, name="alpha", value="&H00&"},
-        {class="label", x=0, y=8, width=1, height=1, label="Scale X:"},
-        {class="floatedit", x=1, y=8, width=1, height=1, name="fscx", value=100, min=0},
-        {class="label", x=2, y=8, width=1, height=1, label="Scale Y:"},
-        {class="floatedit", x=3, y=8, width=1, height=1, name="fscy", value=100, min=0},
-        {class="label", x=0, y=9, width=5, height=1, label="Colors:", bold=true},
-        {class="label", x=0, y=10, width=1, height=1, label="Primary (1c):"},
-        {class="color", x=1, y=10, width=1, height=1, name="c1", value="#FFFFFF"},
-        {class="checkbox", x=2, y=10, width=1, height=1, name="mod1c", value=false, label="Modify"},
-        {class="label", x=3, y=10, width=1, height=1, label="Alpha 1:"},
-        {class="edit", x=4, y=10, width=1, height=1, name="a1", value="&H00&"},
-        {class="label", x=0, y=11, width=1, height=1, label="Secondary (2c):"},
-        {class="color", x=1, y=11, width=1, height=1, name="c2", value="#FFFFFF"},
-        {class="checkbox", x=2, y=11, width=1, height=1, name="mod2c", value=false, label="Modify"},
-        {class="label", x=3, y=11, width=1, height=1, label="Alpha 2:"},
-        {class="edit", x=4, y=11, width=1, height=1, name="a2", value="&H00&"},
-        {class="label", x=0, y=12, width=1, height=1, label="Border (3c):"},
-        {class="color", x=1, y=12, width=1, height=1, name="c3", value="#FFFFFF"},
-        {class="checkbox", x=2, y=12, width=1, height=1, name="mod3c", value=false, label="Modify"},
-        {class="label", x=3, y=12, width=1, height=1, label="Alpha 3:"},
-        {class="edit", x=4, y=12, width=1, height=1, name="a3", value="&H00&"},
-        {class="label", x=0, y=13, width=1, height=1, label="Shadow (4c):"},
-        {class="color", x=1, y=13, width=1, height=1, name="c4", value="#FFFFFF"},
-        {class="checkbox", x=2, y=13, width=1, height=1, name="mod4c", value=false, label="Modify"},
-        {class="label", x=3, y=13, width=1, height=1, label="Alpha 4:"},
-        {class="edit", x=4, y=13, width=1, height=1, name="a4", value="&H00&"}
-    }
-    local buttons = {"Refresh", "Apply", "Save All", "Load Styles", "Export Styles", "Help", "Cancel"}
-    local button, result
-    repeat
-        config_base[2].value = current_actor .. " (" .. (actor_count[current_actor] or 0) .. " lines)"
-        local config = update_dialog_for_actor(current_actor, deepcopy(config_base))
-        button, result = aegisub.dialog.display(config, buttons)
-        local new_actor = result.selected_actor:match("^(.-) %(") or result.selected_actor
-        if new_actor ~= current_actor then
-            current_actor = new_actor
-            button = "Refresh"
-        end
-        if button == "Cancel" then
-            aegisub.cancel()
-        elseif button == "Help" then
-            local help_text = [[Kite Styles Manager v1.4 - Help
+function apply_colors_as_tags(subs, actor_data, assignments) local lines_modified = 0 for actor, data in pairs(actor_data) do if assignments[actor] then for _, line_info in ipairs(data.lines) do local line = subs[line_info.index] local cleaned_text = remove_color_tags(line.text) local _, clean_content = extract_tags_with_positions(cleaned_text) local has_tags = cleaned_text:match("^{\\[^}]*}") local tag_parts = {} for color_type,color_value in pairs(assignments[actor].ass_colors) do local bgr_color=hex_to_bgr(color_value) if bgr_color then table.insert(tag_parts,"\\"..color_type..bgr_color) end end
+for color_type,color_values in pairs(assignments[actor].vsf_colors) do local bgr_colors={} for _,hex in ipairs(color_values) do local bgr=hex_to_bgr(hex) if bgr then table.insert(bgr_colors,bgr) end end if #bgr_colors==4 then table.insert(tag_parts,"\\"..color_type.."("..table.concat(bgr_colors,",")..")") end end if #tag_parts > 0 then local tags_string = table.concat(tag_parts, "") if has_tags then line.text = cleaned_text:gsub("^({\\[^}]*)(})", "%1" .. tags_string .. "%2") else line.text = "{" .. tags_string .. "}" .. clean_content end subs[line_info.index] = line lines_modified = lines_modified + 1 end end end end return lines_modified end
 
-Basic Functionality:
-  • Select an actor from the dropdown. The fields show the current recognized style tags.
-  • Modify the desired values and check "Modify" for the colors you wish to change.
-  • Click "Refresh" button reloads the dialog with the stored values for the selected actor.
-  • Click "Apply" to update the stored style for the active actor (this does not immediately modify the subtitles).
-  • Click "Save All" to apply all stored changes to the selected lines.
+function sanitize_style_name(name) local r={["á"]="a",["é"]="e",["í"]="i",["ó"]="o",["ú"]="u",["ñ"]="n",["ü"]="u",["Á"]="A",["É"]="E",["Í"]="I",["Ó"]="O",["Ú"]="U",["Ñ"]="N",["Ü"]="U"} return name:gsub("[^%w_%-]",function(c)return r[c]or"_"end)end
 
-Neutral Values (Unchanged):
-  • Blur, Be, Border, Shadow, XShad, YShad, Fsp: 0
-  • FscX, FscY: 100
-  • Colors remain unchanged unless "Modify" is checked.
-  • Alpha: &H00& 
-  
-Save and Load:
-  • Load Styles: Imports styles from a previously saved file.
-  • Export Styles: Saves all actor styles to a file.
-  • Changes accumulate per actor until "Save All" is pressed.]]
-            aegisub.dialog.display({{class="textbox", x=0, y=0, width=50, height=20, name="help_text", value=help_text}}, {"OK"})
-            button = "Refresh"
-        elseif button == "Export Styles" then
-            local styles_to_export = {}
-            local neutral = {
-                blur = 0, be = 0, shad = 0, bord = 0,
-                xshad = 0, yshad = 0, fsp = 0, fscx = 100, fscy = 100,
-                alpha = "&H00&",
-                ["1c"] = "#FFFFFF", ["2c"] = "#FFFFFF",
-                ["3c"] = "#FFFFFF", ["4c"] = "#FFFFFF",
-                ["1a"] = "&H00&", ["2a"] = "&H00&",
-                ["3a"] = "&H00&", ["4a"] = "&H00&",
-                mod1c = false, mod2c = false, mod3c = false, mod4c = false
-            }
-            for _, actor in ipairs(actors) do
-                local style = actor_styles[actor] or neutral
-                styles_to_export[actor] = build_style_string(style, neutral)
-            end
-            save_styles(styles_to_export)
-            button = "Refresh"
-        elseif button == "Load Styles" then
-            load_styles(subs, sel, actors)
-            button = "Refresh"
-        elseif button == "Apply" then
-            local new_style = {
-                blur = result.blur or 0,
-                be = result.be or 0,
-                shad = result.shad or 0,
-                bord = result.bord or 0,
-                xshad = result.xshad or 0,
-                yshad = result.yshad or 0,
-                fsp = result.fsp or 0,
-                fscx = result.fscx or 100,
-                fscy = result.fscy or 100,
-                alpha = result.alpha or "&H00&",
-                ["1c"] = result.c1 or "#FFFFFF",
-                ["2c"] = result.c2 or "#FFFFFF",
-                ["3c"] = result.c3 or "#FFFFFF",
-                ["4c"] = result.c4 or "#FFFFFF",
-                ["1a"] = result.a1 or "&H00&",
-                ["2a"] = result.a2 or "&H00&",
-                ["3a"] = result.a3 or "&H00&",
-                ["4a"] = result.a4 or "&H00&",
-                mod1c = result.mod1c,
-                mod2c = result.mod2c,
-                mod3c = result.mod3c,
-                mod4c = result.mod4c
-            }
-            actor_styles[current_actor] = new_style
-            actor_ui_values[current_actor] = deepcopy(new_style)
-            aegisub.dialog.display({{class="label", x=0, y=0, label="Changes applied for " .. current_actor}}, {"OK"})
-            button = "Refresh"
-        elseif button == "Save All" then
-            local modified = save_all_changes(subs, sel, actors)
-            aegisub.set_undo_point("Save All Changes")
-            aegisub.dialog.display({{class="label", x=0, y=0, label="Total modified lines: " .. modified}}, {"OK"})
-            break
-        end
-    until false
-end
+function apply_colors_as_styles(subs,actor_data,assignments) local styles_created,lines_modified,existing_styles,style_insert_pos=0,0,{},1 for i=1,#subs do local line=subs[i] if line.class=="style"then existing_styles[line.name]={index=i,style=line} style_insert_pos=i+1 end end local actor_original_styles={} local actors_sorted={} for actor,data in pairs(actor_data)do if assignments[actor]and#data.lines>0 then actor_original_styles[actor]=subs[data.lines[1].index].style table.insert(actors_sorted,actor) end end table.sort(actors_sorted) for _,actor in ipairs(actors_sorted)do local has_vsf=false for _ in pairs(assignments[actor].vsf_colors)do has_vsf=true break end if has_vsf then aegisub.dialog.display({{class="label",label="ADVERTENCIA: El actor '"..actor.."' tiene colores VSFilterMod asignados.\nLos estilos de Aegisub no soportan colores VSFilterMod.\nSolo se aplicarán los colores ASS estándar."}},{"OK"})end local orig_style_name=actor_original_styles[actor] local clean_actor=sanitize_style_name(actor) local new_style_name=orig_style_name.."_"..clean_actor local orig_style=existing_styles[orig_style_name] if orig_style and not existing_styles[new_style_name]then local new_style={} for k,v in pairs(orig_style.style)do new_style[k]=v end new_style.name,new_style.class=new_style_name,"style" for color_type,color_value in pairs(assignments[actor].ass_colors)do local bgr_color=hex_to_bgr(color_value) if bgr_color then local bgr_num=tonumber(bgr_color:match("&H([%x]+)&"),16) if bgr_num then if color_type=="c"or color_type=="1c"then new_style.color1=bgr_num elseif color_type=="2c"then new_style.color2=bgr_num elseif color_type=="3c"then new_style.color3=bgr_num elseif color_type=="4c"then new_style.color4=bgr_num end end end end subs.insert(style_insert_pos,new_style) existing_styles[new_style_name]={index=style_insert_pos,style=new_style} styles_created=styles_created+1 style_insert_pos=style_insert_pos+1 end end for _,actor in ipairs(actors_sorted)do local data=actor_data[actor] local orig_style_name=actor_original_styles[actor] local clean_actor=sanitize_style_name(actor) local new_style_name=orig_style_name.."_"..clean_actor for _,line_info in ipairs(data.lines)do local adj_idx=line_info.index+styles_created local line=subs[adj_idx] line.style,line.text=new_style_name,remove_color_tags(line.text) subs[adj_idx]=line lines_modified=lines_modified+1 end end return styles_created,lines_modified end
 
-aegisub.register_macro(script_name, script_description, main)
+function get_subtitle_path() local filename = aegisub.project_properties().filename or "" if filename == "" then return aegisub.decode_path("?script/") else local path = filename:match("^(.*[/\\])") if path and path ~= "" then return path else return aegisub.decode_path("?script/") end end end
+
+function get_subtitle_filename() local video_file = aegisub.project_properties().video_file or "" if video_file ~= "" then local basename = video_file:match("([^/\\]+)%.%w+$") if basename then return basename end end return "subtitle_" .. os.date("%H%M%S") end
+
+function export_assignments(actor_data) local subtitle_path = get_subtitle_path() local subtitle_name = get_subtitle_filename() local export_filename = subtitle_path .. subtitle_name .. "_actor_colors.txt" local file, err = io.open(export_filename, "w") if not file then return false, "No se pudo crear el archivo: " .. (err or "desconocido") end file:write("# Kite Styles Manager v3.4 - Asignaciones\n") file:write("# Generado: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n") file:write("# Archivo origen: " .. subtitle_name .. "\n") file:write("# Formato: ACTOR|TIPO_COLOR|VALORES\n\n") for actor, data in pairs(actor_data) do local ass_colors = {} for color_type, color_value in pairs(data.ass_colors) do table.insert(ass_colors, color_type .. "=" .. color_value) end if #ass_colors > 0 then file:write(actor .. "|ASS|" .. table.concat(ass_colors, ",") .. "\n") end local vsf_colors = {} for color_type, color_values in pairs(data.vsf_colors) do table.insert(vsf_colors, color_type .. "=" .. format_vsfilter_colors(color_values)) end if #vsf_colors > 0 then file:write(actor .. "|VSF|" .. table.concat(vsf_colors, ",") .. "\n") end if #ass_colors == 0 and #vsf_colors == 0 then file:write(actor .. "|EMPTY|\n") end end file:close() return true, export_filename end
+
+function import_assignments(actor_data) local filepath = aegisub.dialog.open("Seleccionar archivo de asignaciones de colores", "", "", "Archivos de texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*", false, true) if not filepath then return false, "Importación cancelada por el usuario" end local file, err = io.open(filepath, "r") if not file then return false, "No se pudo abrir el archivo: " .. (err or "desconocido") end local imported_data = {} local line_count = 0 local valid_actors = 0 local processed_actors = {} for line in file:lines() do line_count = line_count + 1 if not line:match("^#") and line ~= "" then local actor, color_type, values = line:match("([^|]+)|([^|]+)|(.+)") if actor and color_type and values then actor = actor:match("^%s*(.-)%s*$") if actor_data[actor] then if not imported_data[actor] then imported_data[actor] = {ass_colors = {}, vsf_colors = {}} processed_actors[actor] = true end if color_type == "ASS" and values ~= "" then for color_assignment in values:gmatch("([^,]+)") do local ct, cv = color_assignment:match("([^=]+)=(.+)") if ct and cv then ct = ct:match("^%s*(.-)%s*$") cv = cv:match("^%s*(.-)%s*$") local valid_color = validate_color(cv) if valid_color then imported_data[actor].ass_colors[ct] = valid_color end end end elseif color_type == "VSF" and values ~= "" then local ct, cv = values:match("([^=]+)=(.+)") if ct and cv then ct = ct:match("^%s*(.-)%s*$") cv = cv:match("^%s*(.-)%s*$") local parsed_colors = parse_vsfilter_colors(cv) if parsed_colors then imported_data[actor].vsf_colors[ct] = parsed_colors end end end end end end end file:close() for _ in pairs(processed_actors) do valid_actors = valid_actors + 1 end aegisub.dialog.display({{class = "label", label = string.format("Importación completada:\n\n• Archivo: %s\n• Líneas procesadas: %d\n• Actores importados: %d\n• Solo se importaron actores existentes en el proyecto actual", filepath:match("([^/\\]+)$") or filepath, line_count, valid_actors), x = 0, y = 0, width = 1, height = 1}}, {"OK"}) return true, imported_data end
+
+function detect_color_conflicts(actor_data) local conflicts = {} for actor, data in pairs(actor_data) do local actor_conflicts = {} for color_type, conflict_colors in pairs(data.conflicts.ass) do if #conflict_colors > 1 then table.insert(actor_conflicts, {type = "ASS", color_type = color_type, colors = conflict_colors}) end end for color_type, conflict_colors in pairs(data.conflicts.vsf) do if #conflict_colors > 1 then table.insert(actor_conflicts, {type = "VSF", color_type = color_type, colors = conflict_colors}) end end if #actor_conflicts > 0 then conflicts[actor] = actor_conflicts end end return conflicts end
+
+function clean_color_tags(subs,sel,config)local lines_modified=0 local patterns={} if config.clean_c then table.insert(patterns,"\\c&H[%x]+&")end if config.clean_1c then table.insert(patterns,"\\1c&H[%x]+&")end if config.clean_2c then table.insert(patterns,"\\2c&H[%x]+&")end if config.clean_3c then table.insert(patterns,"\\3c&H[%x]+&")end if config.clean_4c then table.insert(patterns,"\\4c&H[%x]+&")end if config.clean_1vc then table.insert(patterns,"\\1vc%([^)]+%)")end if config.clean_2vc then table.insert(patterns,"\\2vc%([^)]+%)")end if config.clean_3vc then table.insert(patterns,"\\3vc%([^)]+%)")end if config.clean_4vc then table.insert(patterns,"\\4vc%([^)]+%)")end for _,i in ipairs(sel)do local line=subs[i] if line.class=="dialogue"then local original_text=line.text local new_text=original_text for _,pattern in ipairs(patterns)do new_text=new_text:gsub(pattern,"")end new_text=new_text:gsub("{%s*}","") if new_text~=original_text then line.text=new_text subs[i]=line lines_modified=lines_modified+1 end end end return lines_modified end
+
+function show_manager_interface(subs, sel) if #sel == 0 then aegisub.dialog.display({{class="label", label="No hay líneas seleccionadas."}}, {"OK"}) return end local actor_data = analyze_lines_by_actor(subs, sel) if not next(actor_data) then aegisub.dialog.display({{class="label", label="No se encontraron actores en las líneas seleccionadas."}}, {"OK"}) return end local actor_list = generate_actor_list(actor_data) local color_assignments = generate_color_assignments(actor_data) local dialog = {{class="label", x=0, y=0, width=40, label="Actores Encontrados:"}, {class="label", x=41, y=0, width=40, label="Asignaciones de Colores:"}, {class="textbox", x=0, y=1, width=40, height=15, name="actors", text=actor_list, readonly=true}, {class="textbox", x=41, y=1, width=40, height=15, name="assignments", text=color_assignments}, {class="label", x=0, y=16, width=81, label="Formato: Actor: c=#FFFFFF 1c=#FF0000 2vc=#FF0000,#00FF00,#0000FF,#FFFF00"}, {class="checkbox", x=0, y=17, width=20, name="export", label="Exportar asignaciones", value=false}, {class="checkbox", x=0, y=18, width=20, name="import", label="Importar desde archivo", value=false}} local buttons = {"Estilizar por Tags", "Estilizar por Estilo", "Cancelar"} local pressed, results = aegisub.dialog.display(dialog, buttons) if pressed == "Cancelar" then return end if results.export then local success, result = export_assignments(actor_data) if success then aegisub.dialog.display({{class="label", label="Asignaciones exportadas a:\n" .. result}}, {"OK"}) else aegisub.dialog.display({{class="label", label="Error al exportar:\n" .. result}}, {"OK"}) end end local assignments = parse_color_assignments(results.assignments, actor_data) if results.import then local subtitle_path = get_subtitle_path() local subtitle_name = get_subtitle_filename() local import_filename = subtitle_path .. subtitle_name .. ".txt" local success, imported = import_assignments(actor_data) if success then for actor, data in pairs(imported) do if assignments[actor] then for color_type, color_value in pairs(data.ass_colors) do assignments[actor].ass_colors[color_type] = color_value end for color_type, color_values in pairs(data.vsf_colors) do assignments[actor].vsf_colors[color_type] = color_values end else assignments[actor] = data end end else aegisub.dialog.display({{class="label", label="Error al importar:\n" .. imported}}, {"OK"}) return end end if pressed == "Estilizar por Tags" then local modified = apply_colors_as_tags(subs, actor_data, assignments) aegisub.dialog.display({{class="label", label="Se modificaron " .. modified .. " líneas con tags de color."}}, {"OK"}) aegisub.set_undo_point("Kite Styles Manager - Tags aplicados") elseif pressed == "Estilizar por Estilo" then local styles_created, lines_modified = apply_colors_as_styles(subs, actor_data, assignments) aegisub.dialog.display({{class="label", label="Se crearon " .. styles_created .. " estilos nuevos.\nSe modificaron " .. lines_modified .. " líneas."}}, {"OK"}) aegisub.set_undo_point("Kite Styles Manager - Estilos aplicados") end end
+
+function show_duplicate_finder(subs, sel) if #sel == 0 then aegisub.dialog.display({{class="label", label="No hay líneas seleccionadas."}}, {"OK"}) return end local actor_data = analyze_lines_by_actor(subs, sel) local conflicts = detect_color_conflicts(actor_data) if not next(conflicts) then aegisub.dialog.display({{class="label", label="No se encontraron conflictos de colores entre actores."}}, {"OK"}) return end local report = "Conflictos de colores detectados:\n\n" for actor, actor_conflicts in pairs(conflicts) do report = report .. "Actor: " .. actor .. "\n" for _, conflict in ipairs(actor_conflicts) do report = report .. "  " .. conflict.type .. " " .. conflict.color_type .. ": " report = report .. table.concat(conflict.colors, " vs ") .. "\n" end report = report .. "\n" end local dialog = {{class="label", x=0, y=0, width=1, label="Conflictos encontrados:"}, {class="textbox", x=0, y=1, width=80, height=20, name="conflicts", text=report, readonly=true}} aegisub.dialog.display(dialog, {"OK"}) end
+
+function show_cleaner_interface(subs,sel)if #sel==0 then aegisub.dialog.display({{class="label",label="No hay líneas seleccionadas."}},{"OK"})return end local dialog={{class="label",x=0,y=0,width=40,label="Selecciona qué tags de color limpiar:"},{class="checkbox",x=0,y=1,width=20,name="clean_c",label="\\c (Primario)",value=true},{class="checkbox",x=0,y=2,width=20,name="clean_1c",label="\\1c (Primario)",value=true},{class="checkbox",x=0,y=3,width=20,name="clean_2c",label="\\2c (Secundario)",value=true},{class="checkbox",x=0,y=4,width=20,name="clean_3c",label="\\3c (Borde)",value=true},{class="checkbox",x=0,y=5,width=20,name="clean_4c",label="\\4c (Sombra)",value=true},{class="checkbox",x=0,y=6,width=20,name="clean_1vc",label="\\1vc (VSFilterMod Primario)",value=true},{class="checkbox",x=0,y=7,width=20,name="clean_2vc",label="\\2vc (VSFilterMod Secundario)",value=true},{class="checkbox",x=0,y=8,width=20,name="clean_3vc",label="\\3vc (VSFilterMod Borde)",value=true},{class="checkbox",x=0,y=9,width=20,name="clean_4vc",label="\\4vc (VSFilterMod Sombra)",value=true},{class="label",x=0,y=10,width=40,label="Esta acción eliminará los tags de color seleccionados de las líneas."}} local pressed,results=aegisub.dialog.display(dialog,{"Limpiar","Cancelar"}) if pressed=="Limpiar"then local config={clean_c=results.clean_c,clean_1c=results.clean_1c,clean_2c=results.clean_2c,clean_3c=results.clean_3c,clean_4c=results.clean_4c,clean_1vc=results.clean_1vc,clean_2vc=results.clean_2vc,clean_3vc=results.clean_3vc,clean_4vc=results.clean_4vc} local modified=clean_color_tags(subs,sel,config) aegisub.dialog.display({{class="label",label="Se limpiaron "..modified.." líneas."}},{"OK"}) aegisub.set_undo_point("Kite Styles Manager - Tags limpiados")end end
+
+function show_analysis_interface(subs, sel) if #sel == 0 then aegisub.dialog.display({{class="label", label="No hay líneas seleccionadas."}}, {"OK"}) return end local actor_data = analyze_lines_by_actor(subs, sel) if not next(actor_data) then aegisub.dialog.display({{class="label", label="No se encontraron actores en las líneas seleccionadas."}}, {"OK"}) return end local analysis = "Análisis detallado por actor:\n\n" local total_lines = 0 local total_actors = 0 for actor, data in pairs(actor_data) do total_actors = total_actors + 1 total_lines = total_lines + #data.lines analysis = analysis .. "=== " .. actor .. " ===\n" analysis = analysis .. "Líneas: " .. #data.lines .. "\n" local ass_count = 0 for _ in pairs(data.ass_colors) do ass_count = ass_count + 1 end if ass_count > 0 then analysis = analysis .. "Colores ASS (" .. ass_count .. "): " local colors = {} for color_type, color_value in pairs(data.ass_colors) do table.insert(colors, color_type .. "=" .. color_value) end analysis = analysis .. table.concat(colors, " ") .. "\n" end local vsf_count = 0 for _ in pairs(data.vsf_colors) do vsf_count = vsf_count + 1 end if vsf_count > 0 then analysis = analysis .. "Colores VSFilterMod (" .. vsf_count .. "): " local colors = {} for color_type, color_values in pairs(data.vsf_colors) do table.insert(colors, color_type .. "=" .. format_vsfilter_colors(color_values)) end analysis = analysis .. table.concat(colors, " ") .. "\n" end local has_conflicts = false for _, conflicts in pairs(data.conflicts.ass) do if #conflicts > 1 then has_conflicts = true break end end if not has_conflicts then for _, conflicts in pairs(data.conflicts.vsf) do if #conflicts > 1 then has_conflicts = true break end end end local primary=data.ass_colors["c"] or data.ass_colors["1c"] local outline=data.ass_colors["3c"] if primary and outline then local cr=contrast_ratio(primary,outline) local status=(cr>=4.5 and "OK") or (cr>=3 and "BAJO") or "MUY BAJO" analysis=analysis..string.format("Contraste Primario-Outline: %.2f : 1 [%s]\n",cr,status) end if has_conflicts then analysis=analysis.."¡CONFLICTOS DETECTADOS!\n" end analysis = analysis .. "\n" end analysis = "RESUMEN: " .. total_actors .. " actores, " .. total_lines .. " líneas\n\n" .. analysis local dialog = {{class="label", x=0, y=0, width=1, label="Análisis completo:"}, {class="textbox", x=0, y=1, width=100, height=25, name="analysis", text=analysis, readonly=true}} aegisub.dialog.display(dialog, {"OK"}) end
+
+function bgr_num_to_hex(bgr_num) if type(bgr_num)=="string"then bgr_num=tonumber(bgr_num:match("H([%x]+)") or bgr_num,16) end if not bgr_num then return "#000000" end local num=bgr_num if num<0 then num=4294967296+num end local b=math.floor(num/65536)%256 local g=math.floor(num/256)%256 local r=num%256 return string.format("#%02X%02X%02X",r,g,b) end
+
+function analyze_styles_by_actor(subs,sel) local style_data,used_styles={},{} for _,i in ipairs(sel)do local line=subs[i] if line.class=="dialogue"then local actor=line.actor or "Sin Actor" local style_name=line.style used_styles[style_name]=true if not style_data[actor]then style_data[actor]={styles={},lines={}} end if not style_data[actor].styles[style_name]then style_data[actor].styles[style_name]={count=0,colors={}} end style_data[actor].styles[style_name].count=style_data[actor].styles[style_name].count+1 table.insert(style_data[actor].lines,{index=i,style=style_name}) end end local style_colors={} for i=1,#subs do local line=subs[i] if line.class=="style"and used_styles[line.name]then style_colors[line.name]={} local c1=bgr_num_to_hex(line.color1) local c2=bgr_num_to_hex(line.color2) local c3=bgr_num_to_hex(line.color3) local c4=bgr_num_to_hex(line.color4) style_colors[line.name]["1c"]=c1 style_colors[line.name]["2c"]=c2 style_colors[line.name]["3c"]=c3 style_colors[line.name]["4c"]=c4 end end for actor,data in pairs(style_data)do for style_name,style_info in pairs(data.styles)do if style_colors[style_name]then style_info.colors=style_colors[style_name] end end end return style_data end
+
+function styles_to_tags(subs,sel) if #sel==0 then aegisub.dialog.display({{class="label",label="No hay líneas seleccionadas."}},{"OK"})return end local style_data=analyze_styles_by_actor(subs,sel) if not next(style_data)then aegisub.dialog.display({{class="label",label="No se encontraron actores en las líneas seleccionadas."}},{"OK"})return end local report="Conversión de estilos a tags por actor:\n\n" local assignments={} for actor,data in pairs(style_data)do report=report.."=== "..actor.." ===\n" assignments[actor]={ass_colors={},vsf_colors={}} local primary_style,max_count="",0 for style_name,style_info in pairs(data.styles)do if style_info.count>max_count then max_count,primary_style=style_info.count,style_name end report=report.."Estilo: "..style_name.." ("..style_info.count.." líneas)\n" for color_type,color_value in pairs(style_info.colors or {})do report=report.."  "..color_type.."="..color_value.."\n" if not assignments[actor].ass_colors[color_type]then assignments[actor].ass_colors[color_type]=color_value end end end report=report.."Estilo principal: "..primary_style.."\n\n" end local dialog={{class="label",x=0,y=0,width=1,label="Análisis de estilos:"},{class="textbox",x=0,y=1,width=80,height=20,name="analysis",text=report,readonly=true}} local pressed=aegisub.dialog.display(dialog,{"Convertir a Tags","Cancelar"}) if pressed=="Convertir a Tags"then local actor_data_converted={} for actor,data in pairs(style_data)do actor_data_converted[actor]={lines={},ass_colors={},vsf_colors={}} for _,line_info in ipairs(data.lines)do table.insert(actor_data_converted[actor].lines,{index=line_info.index}) end end local modified=apply_colors_as_tags(subs,actor_data_converted,assignments) aegisub.dialog.display({{class="label",label="Se convirtieron "..modified.." líneas de estilos a tags."}},{"OK"}) aegisub.set_undo_point("Kite Styles Manager - Estilos a Tags") end end
+
+function actor_color_manager(subs, sel) show_manager_interface(subs, sel) end
+function find_duplicate_colors(subs, sel) show_duplicate_finder(subs, sel) end
+function clean_color_tags_menu(subs, sel) show_cleaner_interface(subs, sel) end
+function analyze_colors(subs, sel) show_analysis_interface(subs, sel) end
+
+aegisub.register_macro("Kite Styles Manager/Gestionar Colores", "Gestión inteligente de colores por actor", actor_color_manager)
+aegisub.register_macro("Kite Styles Manager/Buscar Conflictos", "Detectar conflictos de colores entre actores", find_duplicate_colors)
+aegisub.register_macro("Kite Styles Manager/Limpiar Tags", "Eliminar tags de color de las líneas seleccionadas", clean_color_tags_menu)
+aegisub.register_macro("Kite Styles Manager/Análisis Detallado", "Mostrar análisis completo de colores por actor", analyze_colors)
+aegisub.register_macro("Kite Styles Manager/Convertir Estilos a Tags", "Analizar estilos por actor y convertir a tags", styles_to_tags)
