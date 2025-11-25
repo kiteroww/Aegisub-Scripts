@@ -731,7 +731,7 @@ local function row_master_gui(subs,sel)
         elseif b=="GapMarker" then 
             gapMarker(subs,sel)
             return
-        elseif b=="EJECUTAR" then
+        elseif b=="EXECUTE" then
             local twin_val = tonumber(r.twin)
             local miss_val = tonumber(r.miss)
             local ov_val = tonumber(r.ov)
