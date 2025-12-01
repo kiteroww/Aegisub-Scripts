@@ -1,7 +1,7 @@
 script_name = "Chronorow Master"
 script_description = "Ultimate Timing & Styling Suite"
 script_author = "Kiterow"
-script_version = "2.0"
+script_version = "2.1"
 menu_embedding = "Kite-Macros/"
 
 include("karaskel.lua")
@@ -192,7 +192,6 @@ local function hasKFinRange(t1,t2)
   for _,k in ipairs(kfs)do if k>=f1 and k<f2 then return true end end 
   return false 
 end
-local function addEffectTag(line,tag) addTag(line, tag) end
 
 local function tagTiming(subs,sel,o) 
   aegisub.progress.task("Applying timing markers...")
@@ -204,28 +203,28 @@ local function tagTiming(subs,sel,o)
     
     if o.kf then
       if mode=="End Only" and isKeyframe(ln.end_time) then 
-        addEffectTag(ln,"[KF-E]") 
+        addTag(ln,"[KF-E]") 
       elseif mode=="Start Only" and isKeyframe(ln.start_time) then 
-        addEffectTag(ln,"[KF-S]") 
+        addTag(ln,"[KF-S]") 
       elseif mode=="Both" then
-        if isKeyframe(ln.end_time) then addEffectTag(ln,"[KF-E]") end
-        if isKeyframe(ln.start_time) then addEffectTag(ln,"[KF-S]") end
+        if isKeyframe(ln.end_time) then addTag(ln,"[KF-E]") end
+        if isKeyframe(ln.start_time) then addTag(ln,"[KF-S]") end
       end
     end
     
-    if o.ov>0 and dur>o.ov then addEffectTag(ln,"[Overtime]") end 
+    if o.ov>0 and dur>o.ov then addTag(ln,"[Overtime]") end 
     
     if mode=="End Only" or mode=="Both" then 
       if o.twin>0 and isKeyframe(ln.end_time) then 
         local search_start = math.max(ln.start_time, ln.end_time - o.twin)
         if hasKFinRange(search_start, ln.end_time - 1) then 
-          addEffectTag(ln,"[Twin-E]") 
+          addTag(ln,"[Twin-E]") 
         end 
       end 
       if o.miss>0 and not isKeyframe(ln.end_time) then 
         local search_start = math.max(ln.start_time, ln.end_time - o.miss)
         if hasKFinRange(search_start, ln.end_time - 1) then 
-          addEffectTag(ln,"[Miss-E]") 
+          addTag(ln,"[Miss-E]") 
         end 
       end 
     end 
@@ -234,13 +233,13 @@ local function tagTiming(subs,sel,o)
       if o.twin>0 and isKeyframe(ln.start_time) then 
         local search_start = math.max(0, ln.start_time - o.twin)
         if hasKFinRange(search_start, ln.start_time - 1) then 
-          addEffectTag(ln,"[Twin-S]") 
+          addTag(ln,"[Twin-S]") 
         end 
       end 
       if o.miss>0 and not isKeyframe(ln.start_time) then 
         local search_start = math.max(0, ln.start_time - o.miss)
         if hasKFinRange(search_start, ln.start_time - 1) then 
-          addEffectTag(ln,"[Miss-S]") 
+          addTag(ln,"[Miss-S]") 
         end 
       end 
     end 
@@ -250,13 +249,14 @@ local function tagTiming(subs,sel,o)
 end
 
 local function tagOverlaps(subs,sel) 
+  if #sel<2 then return end
   aegisub.progress.task("Detecting overlaps...")
   table.sort(sel,function(a,b)return subs[a].start_time<subs[b].start_time end) 
   for p=1,#sel-1 do 
     aegisub.progress.set(p/(#sel-1)*100)
     local a,b=subs[sel[p]],subs[sel[p+1]] 
     if a.end_time>b.start_time then 
-      for _,ln in ipairs{a,b}do addEffectTag(ln,"[Overlap]") end 
+      for _,ln in ipairs{a,b}do addTag(ln,"[Overlap]") end 
     end 
     subs[sel[p]],subs[sel[p+1]]=a,b 
   end 
@@ -282,8 +282,8 @@ local function markSmallGaps(subs,sel,opt)
       if opt.ignoreKeyframes and isKeyframe(c.end_time) then mark=false end 
       if mark then 
         local t="["..opt.gapTag..(gap==0 and " 0ms]" or " "..gap.."ms]") 
-        addEffectTag(c.line,t) 
-        addEffectTag(n.line,t) 
+        addTag(c.line,t) 
+        addTag(n.line,t) 
         subs[c.index]=c.line 
         subs[n.index]=n.line 
         cnt=cnt+2 
@@ -327,8 +327,8 @@ TIPS:
 • Use small values (50-250ms) to detect blinks
 ]] aegisub.dialog.display({{class="textbox",text=helpText,x=0,y=0,width=55,height=25}},{"OK"}) elseif btn=="Cancel" then return elseif btn=="Mark Gaps" then local mg=tonumber(res.maxGap) if not mg or mg<0 then aegisub.dialog.display({{class="label",label="Invalid gap value"}},{"OK"}) goto c end if res.gapTag=="" then aegisub.dialog.display({{class="label",label="Must specify a tag"}},{"OK"}) goto c end if #sel<2 then aegisub.dialog.display({{class="label",label="Need 2+ lines"}},{"OK"}) return end local opt={maxGap=mg,ignoreKeyframes=res.ignoreKeyframes,markContinuous=res.markContinuous,gapTag=res.gapTag} local c=markSmallGaps(subs,sel,opt) aegisub.dialog.display({{class="label",label="Tagged "..c.." lines."}},{"OK"}) return end ::c:: cfg=res end end
 
-local function markUppercase(subs,sel) for _,i in ipairs(sel)do local l=subs[i] if isUppercase(l.text) then addEffectTag(l,"[Uppercase]") subs[i]=l end end end
-local function markMissingPunctuation(subs,sel) for _,i in ipairs(sel)do local l=subs[i] local c=stripTags(l.text):gsub("%s+$","") if c~="" and not c:match("[%.,!?！？]%s*$") then addEffectTag(l,"[Missing Final Punctuation]") subs[i]=l end end end
+local function markUppercase(subs,sel) for _,i in ipairs(sel)do local l=subs[i] if isUppercase(l.text) then addTag(l,"[Uppercase]") subs[i]=l end end end
+local function markMissingPunctuation(subs,sel) for _,i in ipairs(sel)do local l=subs[i] local c=stripTags(l.text):gsub("%s+$","") if c~="" and not c:match("[%.,!?！？]%s*$") then addTag(l,"[Missing Final Punctuation]") subs[i]=l end end end
 
 local function parseTime(t) t=t:gsub("^%s+",""):gsub("%s+$","") local h,m,s=t:match("(%d+):(%d+):(%d+%.%d+)") return h and (tonumber(h)*3600+tonumber(m)*60+tonumber(s))*1000 end
 local function timeInt(s1,e1,s2,e2) local s,e=math.max(s1,s2),math.min(e1,e2) return s<e and e-s or 0 end
@@ -368,7 +368,6 @@ local function normalizeContextClarity(d) return 1/(1+d*d) end
 local function calculateScore(c,rt,sw,sd) local d=math.abs(c.time-rt) local fp=normalizeProximity(d,sw) local fq=normalizeSilenceQuality(c.duration or 0) local fc=getSourceConfidence(c.threshold) local fl=normalizeContextClarity(sd) local fflux, fvad = (c.flux_boost or 0), (c.vad_align or 0) return (fp*lazyConfig.weights.proximity)+(fq*lazyConfig.weights.silence_q)+(fc*lazyConfig.weights.source_c)+(fl*lazyConfig.weights.clarity)+(fflux*lazyConfig.weights.flux)+(fvad*lazyConfig.weights.vad) end
 local function findClusters(cs,md) if not cs or #cs==0 then return{} end if #cs<2 then return{cs} end table.sort(cs,function(a,b)return a.time<b.time end) local cls,ccl={},{cs[1]} for i=2,#cs do if cs[i].time-ccl[#ccl].time<=md then table.insert(ccl,cs[i]) else table.insert(cls,ccl) ccl={cs[i]} end end table.insert(cls,ccl) return cls end
 local function weighted_median_time(cl) table.sort(cl,function(a,b)return a.time<b.time end) local sum=0 for _,p in ipairs(cl)do sum=sum+(p.score or 0) end if sum<=0 then local mid=math.floor((#cl+1)/2) return cl[mid].time end local acc=0 for _,p in ipairs(cl)do acc=acc+(p.score or 0) if acc>=sum*0.5 then return p.time end end return cl[#cl].time end
-local function getCentroid(cl) local tw,ws=0,0 for _,p in ipairs(cl)do local s=(p.score or 0) tw=tw+s*s ws=ws+(p.time*s*s) end if tw==0 then return cl[1].time end return ws/tw end
 local function addLazyTag(l,t) addTag(l, "[LZ "..t.."]" , true) end
 local function getLazyPath(t) return aegisub.dialog.open(t,"","","*.txt;*.log",false,true) end
 local function validateIntra(ns,ne,os,oe) if ns<os or ne>oe then return false,"out_of_range" end if ne-ns<lazyConfig.min_duration then return false,"min_dur" end return true end
@@ -739,16 +738,21 @@ function caption_clarifier(subs, selected_lines)
     aegisub.dialog.display({{class="label",label=msg,x=0,y=0,width=1,height=1}}, {"OK"})
 end
 
-local lb_cfg={minLength=15,widthDiffPenalty=100,ragPenaltyFactor=10,shortCharsPenalty=500,minChars=5,shortWordsPenalty=1000,minWords=2}
+local lb_cfg={minLength=15,widthDiffPenalty=100,shortCharsPenalty=500,minChars=5,shortWordsPenalty=1000,minWords=2}
 local function isWS(c) return c==" " or c=="\t" end
+local function cntW(t) if not t or t=="" then return 0 end local count=0 local inWord=false for i=1,#t do local c=t:sub(i,i) if isWS(c) then inWord=false else if not inWord then count=count+1 inWord=true end end end return count end
 local function measW(t,s) if not t or t=="" then return 0 end return aegisub.text_extents(s,stripTags(t)) or 0 end
 local function findBP(t) local p,inT={},false for i=1,#t do local c=t:sub(i,i) if c=="{" then inT=true elseif c=="}" then inT=false elseif not inT and isWS(c) then table.insert(p,i) end end return p end
 local function splT(t,p) local a=t:sub(1,p) local s=p+1 while s<=#t and isWS(t:sub(s,s)) do s=s+1 end return a,t:sub(s) end
 local function fBest(t,s,mw) local bp=findBP(t) if #bp==0 then return nil end local bc,bi=math.huge,nil for _,p in ipairs(bp)do local p1,p2=splT(t,p) local w1,w2=measW(p1,s),measW(p2,s) local diff=math.abs(w1-w2) local c=lb_cfg.widthDiffPenalty*diff if #stripTags(p2)<lb_cfg.minChars then c=c+lb_cfg.shortCharsPenalty end if cntW(stripTags(p2))<lb_cfg.minWords then c=c+lb_cfg.shortWordsPenalty end if c<bc then bc=c bi=p end end return bi end
 local function insN(t,p) return t:sub(1,p).."\\N"..t:sub(p+1) end
 local function leblanc_six(subs,sel) 
-  local vw=aegisub.video_size() or 1920 
-  if type(vw)=="table" then vw=vw.width end 
+  local vw=aegisub.video_size()
+  if type(vw)=="table" and vw.width then 
+    vw=vw.width 
+  else 
+    vw=1920 
+  end 
   local st={} 
   for i=1,#subs do 
     if subs[i].class=="style" then st[subs[i].name]=subs[i] end 
