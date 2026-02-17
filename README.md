@@ -1,311 +1,220 @@
-# Aegisub‑Scripts
-Aegisub automation scripts
+# Kite-Macros for Aegisub
+
+A set of automation scripts for [Aegisub](http://www.aegisub.org/) focused on timing, colour management, and typesetting effects. Built for fansubbing workflows but useful for any subtitle work.
+
+All three scripts share the `Kite-Macros/` menu and expose their core functions as standalone Utility macros, so you can bind hotkeys to anything you use often.
 
 ---
 
-# ENGLISH
+## Scripts
 
-## Chronorow Master v2.0
-
-**Chronorow Master** is the ultimate "Swiss Army Knife" for Aegisub. It combines timing verification, smart text splitting, and bulk editing tools into one massive macro. Version 2.0 integrates the **Hot Dog Utils** suite and **Marabunta** directly into the interface, plus it adds **LazyTimer** for automated timing workflows.
-
-### Core Timing & Text Tools
-
-| Tool | What it does |
-|------|--------------|
-| **Keyframe Seal [KF]** | Slaps a `[KF-E]` (end) or `[KF-S]` (start) tag if the line snaps exactly to a keyframe. |
-| **Twin / Miss KF** | Tags `[Twin]` if there's another KF right before the current one, or `[Miss]` if you missed a KF nearby. |
-| **Overtime / Overlap** | Flags lines that drag on too long or overlap with others. |
-| **Lazy Timer** | **New!** Auto-timing magic using silence detection files (Cluster or Table modes). |
-| **Divine Dividing** | Slices sentences at punctuation (.?!) or commas and reallocates time proportionally. |
-| **Line Cleaver \N** | Chops lines at `\N` breaks and splits the duration evenly. |
-| **Kana-Beat {\k}** | Generates `{\k}` karaoke tags from romaji text. |
-| **CPS Ranker / Avg** | Sorts lines by speed (Char/Sec) and calculates the average for the selection. |
-| **Gap Marker** | Hunts down "blinks" (tiny, annoying gaps) between subtitles. |
-| **Extract KFs** | Helper to run FFmpeg + SCXvid to dump a keyframe log. |
-
-### Hot Dog Utils (Editing Suite)
-*Check the "Doggo Mode" box to run ONLY the selected Hot Dog tool. This ignores all other timing settings.*
-
-| Utility | Description |
-|---------|-------------|
-| **LeBlanc Six** | Smart line breaking based on the actual video width. |
-| **Style Sentinel** | Filters your selection by Style (lets you keep specific styles and nuke the rest). |
-| **Caption Clarifier** | Cleans up the mess—removes brackets, parentheses, and extra whitespace. |
-| **Time Picker** | Selects active dialogue lines within a specific time range (ignores comments). |
-| **Extract / Reinsert Tags** | Moves tags `{...}` to the *Effect* field so you can edit text safely, then puts them back. |
-| **Blank Eraser** | Wipes out empty lines that have no visible text. |
-| **Add \an8** | Quick fix to slap `{\an8}` (top alignment) on selected lines. |
-| **Punctuation** | Adds Spanish inverted marks (¡! ¿?) to your text automatically. |
-
-### Marabunta (Sync & Import)
-The content devourer. Paste `Dialogue:` lines from another script to sync data based on time overlaps.
-
-| Mode | Function |
-|------|----------|
-| **Ant Effects** | Steals the *Effect* field from the pasted lines if they overlap in time. |
-| **Ant Lines** | Grabs the *Text* from pasted lines (option to wrap as `{comments}`). |
-| **Ant Actor** | Assigns the *Actor* field based on time overlap. |
+| Script | Version | What it does | Languages |
+|---|---|---|---|
+| **Chronorow Master** | 3.0 | Timing, auditing, text processing, data import | English, Spanish, Portuguese |
+| **Rhearow Master** | 3.0 | Typesetting effects, perspective, masks, visual tools | English, Spanish |
+| **Zheus Colormaster** | 2.0 | Colour management, gradients, animation, FX | Spanish (UI) |
 
 ---
 
-## LazyTimer Setup
+## Chronorow Master
 
-**LazyTimer** is the powerhouse of this suite, but it needs fuel to run. It relies on pre-generated silence and voice activity logs to make its decisions. Without these files, it won't work.
+The timing and line-management workhorse. Open the main dialog, tick the modules you need, set your values, and press EXECUTE. Nothing changes until you do.
 
-### Requirements
+### Timing Audit Module
 
-1.  **FFmpeg:** Must be installed and added to your system's `PATH`.
-2.  **vadflux.exe:** Required for the advanced Voice Activity Detection and Spectral Flux analysis.
-3.  **Generator Script:** Use the included `LazyTimer_Gen.bat` (formerly `RT 3.bat`).
+Analyses your selection and tags problems in the Effect field. You pick which boundary to check (start, end, or both) and Chronorow does the rest.
 
-### How to Generate the Logs
+**Keyframe Seal** marks lines that land on a keyframe (`[KF-S]` / `[KF-E]`). **Twin KF** flags duplicate keyframes within a configurable range — useful when a scene cut produces two KFs close together. **Miss KF** does the opposite: finds lines that *should* be on a keyframe but aren't. **Overtime** marks any line exceeding a duration threshold (recommended 5500 ms for dialogue). **Overlap Alert** catches overlapping lines. **Gap Marker** detects subtitle blinks — tiny gaps between consecutive lines that make the viewer's eye flicker. Configurable threshold and custom tag. **Mark Uppercase** flags lines written entirely in capitals.
 
-We've included a batch script (`LazyTimer_Gen.bat`) that automates the boring stuff. It performs audio pre-processing (highpass/lowpass filters and dynamic normalization) before analysis to ensure accurate timing.
+### Text Processing Engine
 
-1.  Drop your video/audio file, `vadflux.exe`, and the `.bat` script into the same folder.
-2.  Run the `.bat` script.
-3.  **Input 1:** Enter the filename (e.g., `video.mp4`).
-4.  **Input 2:** Enter a chapter number or prefix (e.g., `01`).
-5.  Wait for the process to finish. The script will generate:
-    * `*_30.txt`, `*_40.txt`, `*_50.txt` (Silence logs at different dB thresholds).
-    * `*_vad.tsv` (Voice Activity Detection data).
-    * `*_flux.tsv` (Spectral Flux data).
+**Sentence Splitter** divides lines at `.?!` boundaries, with an optional comma/semicolon mode and a preview-only simulation that just tags `[2S]`/`[3S]` without splitting. **Line Cleaver** splits at existing `\N` tags into separate lines. **Kana-Beat** converts romaji words to `{\k}` syllable timing for karaoke. **Punctuation Check** marks lines missing final punctuation.
 
-### Usage in Aegisub
+### Marabunta (Data Import)
 
-1.  Open **Chronorow Master** > **LazyTimer**.
-2.  **Cluster Mode (Recommended):** Click the buttons to load the `-30dB`, `-40dB`, and `-50dB` files.
-    * *(Optional but recommended)*: Load the `.tsv` files when prompted for VAD/Flux to improve accuracy.
-3.  **Table Mode:** Only requires one silence file (usually the `-40dB` one).
-4.  Hit **Run** and watch it retime your lines.
+Paste raw Dialogue lines into the textbox and import data by time overlap. Five modes: **Ant Effects** imports the Effect field, **Ant Lines** imports text content, **Ant Actor** assigns Actor by best overlap, **Ant Songs** duplicates a group using a sync point (comment on layer 50), and **Ant Twins** works like Ant Lines but restricts matching to the same layer.
 
----
+### CPS Metrics
 
-## Kite Styles Manager v3.4
+**CPS Ranker** sorts lines by characters per second. **Show Avg** displays the average CPS of the current selection.
 
-**Kite Styles Manager** handles actor-specific coloring in Aegisub like a pro. It lets you apply colors via direct tags or by cloning styles, finds inconsistencies, and keeps your palette consistent across episodes.
+### Quick Tools
 
-### Main Features
+Select a tool from the dropdown and press EXECUTE to run it. Each one is also available as a standalone macro under `Kite-Macros/Utility/`.
 
-| Macro | Description |
-|-------|-------------|
-| **Manage Colors** | The main hub. Assign or edit colors per actor. Choose between applying tags or cloning styles. |
-| **Conflict Hunter** | Spots actors with mismatched colors (primary, outline, shadow, etc.). |
-| **Scrub Tags** | Selectively wipes specific color tags from the lines. |
-| **Deep Analysis** | Generates a report per actor: line count, colors in use, and WCAG contrast ratios. |
-| **Styles → Tags** | Hardcodes the style's colors into the line as tags. |
-| **Tags → Styles** | Creates a clone style ("BaseStyle_Actor") and moves the tag info into the style definition. |
-| **Import / Export** | Save or load your color assignments from a `.txt` file. |
+**Kite Timing** — Lead-in/lead-out with keyframe snapping and chaining. Uses ms-based timing with configurable base, max, and chain thresholds (set in Config). **Blank Eraser** — Deletes empty or whitespace-only lines. **Join Same Text** — Merges consecutive lines with identical text. **Time Picker** — Select lines within a time range. **Style Sentinel** — Filter or delete by style name with confirmation. **Caption Clarifier** — Removes `[bracketed]` annotations. **LeBlanc Six** — Automatic line breaks by video width. **Copy Times** — Copies start/end from the first selected line to the rest. **Extract Tags** — Moves `{tags}` to the Effect field. **Reinsert Tags** — Returns the Effect field back into the text. **Sort by Length** — Sorts by character count, longest first. **Punctuation ¡!/¿?** — Adds opening inverted punctuation for Spanish. **Swap Comment** — Swaps visible text with `{commented}` text. **Add an8** — Inserts `{\an8}` for top alignment. **Copy Fold Group** — Copies a fold group to the clipboard. **Double Italics** — Flags broken `\i1...\i0` patterns. **Import Text (Source Timing)** — Pastes lines from clipboard or a dialog box, applied to the selection's timing. **Ellipsis Eraser** — Cleans leading `...` dots. **Actor Parser** — Splits `(A)...(B)` lines, italicises `<thoughts>`, assigns sticky actors. **AE Keyframe Export** — Exports position, scale, and rotation data to an After Effects keyframe file. **Stutter Manager** — Adds stutter patterns (`L-Lword`) with punctuation-aware handling for `¡¿`. **Actor Manager** — Bulk rename or merge actors across the selection. **Remplacer** — Bulk text replacement preserving tags.
 
-### What's new in v3.4
-* Full support for VSFilterMod `vc()` tags.
-* Automatic conflict detection and contrast calculation.
-* Import/Export palettes to `.txt` files.
-* Auto-creation of clone styles per actor.
+### Other Buttons
+
+**KPP** (Kite Post-Processor) — The dedicated timing post-processor. Configurable lead-in, lead-out, keyframe snap range, and chaining distance, all in frames. Shows statistics when done.
+
+**LazyTimer (EFS v2)** — Automatic timing refinement from FFmpeg silence analysis. It reads silence-detection logs (generated by FFmpeg at different dB thresholds) and adjusts line start/end times to align with detected speech boundaries. Three analysis modes are available:
+
+- **LazyFusion** (default) — The most accurate mode. Uses an Evidence Fusion Score (EFS) that combines multiple signals: silence boundaries, VAD (Voice Activity Detection) segments, and flux onset/offset candidates. It scans each line's duration in 5 ms steps, computing an activity score at each point, and snaps start/end to the first/last point where speech activity is detected. VAD data is optional but strongly recommended — without it, LazyFusion falls back to silence-only detection and loses precision. Silence files are also optional (you can cancel any of them), making this the most flexible mode. Flux data provides additional edge-detection confidence.
+- **Cluster (±ms)** — The simpler, more conservative mode. Takes all silence boundaries within a configurable window around each line edge (the ± limit in ms), scores them by proximity, silence quality, and source confidence, then clusters nearby candidates and picks the best cluster's weighted median. Requires all three silence files (-30 dB, -40 dB, -50 dB). VAD and flux are optional boosters.
+- **Table (±ms)** — A noise-table approach. Inverts the silence data to build a noise map, merges small gaps, drops inconclusive edge fragments, and picks the best noise cluster by coverage and proximity. Only needs one silence file. Useful when you want a quick pass with minimal setup.
+
+All three modes support Apply Start / Apply End toggles, configurable tagging (marks changes in the Effect field as `[LZ Δs=+42ms]` etc.), and tag scope filtering. The limit parameter (ms) controls how far from each line boundary the algorithm is allowed to search.
+
+**Extract KF** — Generates keyframes via SCXvid. **Config** — Language selection, LazyTimer settings, Gap Marker thresholds, Import Text source mode, and Kite Timing parameters.
 
 ---
 
-# PORTUGUÊS
+## Rhearow Master
 
-## Chronorow Master v2.0
+The typesetting and visual effects toolkit. Everything lives in one dialog — perspective, masks, text effects, and borders side by side. Settings are saved between sessions with the Remember button.
 
-**Chronorow Master** é o "canivete suíço" definitivo para Aegisub. Ele combina verificação de timing, divisão inteligente de texto e ferramentas de edição em massa numa macro robusta. A versão 2.0 integra o pacote **Hot Dog Utils** e o **Marabunta** diretamente na interface, além de adicionar o **LazyTimer** para fluxos de timing automatizados.
+### Perspective
 
-### Ferramentas de Texto e Timing
+Creates 3D rotation from a `\clip` with 3 or 4 points. Three modes: **Generate 4th** completes a quadrilateral from 3 points, **Gen+Apply** generates the 4th point and applies `\frx\fry\frz` in one go, and **Apply Only** applies rotation from an existing 4-point clip. Options to copy the clip to subsequent lines, keep the original as a comment, remove `\clip` after processing, and normalise vertex order.
 
-| Ferramenta | O que faz |
-|------------|-----------|
-| **Keyframe Seal [KF]** | Carimba uma tag `[KF-E]` (fim) ou `[KF-S]` (início) se a linha bater exatamente no keyframe. |
-| **Twin / Miss KF** | Marca `[Twin]` se houver outro KF logo antes, ou `[Miss]` se você deixou passar um KF próximo. |
-| **Overtime / Overlap** | Sinaliza linhas que duram tempo demais ou sobrepõem outras. |
-| **Lazy Timer** | **Novo!** Timing automático usando arquivos de detecção de silêncio (modos Cluster ou Tabela). |
-| **Divine Dividing** | Fatia frases na pontuação (.?!) ou vírgulas e redistribui o tempo proporcionalmente. |
-| **Line Cleaver \N** | Corta as linhas nas quebras `\N` e divide a duração igualmente. |
-| **Kana-Beat {\k}** | Gera tags de karaokê `{\k}` a partir de texto em romaji. |
-| **CPS Ranker / Avg** | Ordena linhas por velocidade (Char/Seg) e calcula a média da seleção. |
-| **Gap Marker** | Caça os "blinks" (aqueles gaps minúsculos e chatos) entre legendas. |
-| **Extract KFs** | Ajuda a rodar FFmpeg + SCXvid para gerar o log de keyframes. |
+### Masks
 
-### Hot Dog Utils (Suíte de Edição)
-*Marque a caixa "Doggo Mode" para rodar APENAS a ferramenta Hot Dog selecionada. Isso ignora as outras configurações de timing.*
+Creates solid vector shapes from a `\clip` or from predefined shapes (square, circle, triangle, rounded). Masks can be created on a new layer, replace an existing `\p1` drawing, use bicubic rendering (`\q2`), and have custom transparency and colour. Custom masks can be saved to a file and reused.
 
-| Utilitário | Descrição |
-|------------|-----------|
-| **LeBlanc Six** | Quebra de linha inteligente baseada na largura real do vídeo. |
-| **Style Sentinel** | Filtra sua seleção por Estilo (permite manter estilos específicos e apagar o resto). |
-| **Caption Clarifier** | Limpa a bagunça — remove colchetes, parênteses e espaços extras. |
-| **Time Picker** | Seleciona linhas de diálogo ativas num intervalo de tempo específico (ignora comentários). |
-| **Extract / Reinsert Tags** | Move tags `{...}` para o campo *Effect* pra você editar o texto sem medo, depois devolve. |
-| **Blank Eraser** | Apaga linhas vazias que não têm texto visível. |
-| **Add \an8** | Jeito rápido de jogar a tag `{\an8}` (alinhamento topo) nas linhas selecionadas. |
-| **Punctuation** | Adiciona os sinais invertidos de espanhol (¡! ¿?) ao texto automaticamente. |
+### Tools
 
-### Marabunta (Sincronia e Importação)
-O devorador de conteúdo. Cole linhas `Dialogue:` de outro script para sincronizar dados baseando-se na sobreposição de tempo.
+Perspective and clip utilities available from a dropdown: **Copy Persp (Project)** copies `\frx\fry\frz` with `\org` recalculated for each line's position, **Copy Persp (Exact)** copies the tags as-is, **Copy Clip** copies `\clip`/`\iclip` from the first line to the rest, and **Clip ↔ iClip** converters.
 
-| Modo | Função |
-|------|--------|
-| **Ant Effects** | Rouba o campo *Effect* das linhas coladas se elas coincidirem no tempo. |
-| **Ant Lines** | Pega o *Texto* das linhas coladas (opção de envolver como `{comentários}`). |
-| **Ant Actor** | Atribui o campo *Actor* baseado na sobreposição temporal. |
+### Scale (Text Fitting)
 
----
+Fits text inside a rectangular `\clip` area. Four modes: **fill** stretches to fill (may distort), **prop** scales proportionally, **center** centres at clip midpoint, and **justify** auto-wraps with `\N` and justifies to margins. Configurable margin padding in pixels.
 
-## Configuração do LazyTimer
+### Text
 
-O **LazyTimer** é o motorzão dessa suíte, mas precisa de combustível. Ele depende de logs pré-gerados de silêncio e atividade de voz. Sem esses arquivos, ele não funciona.
+**Case conversion** with UPPER, lower, Title, and Sentence modes. **Typewriter** effect in two flavours: per-frame (42 ms/character) or proportional to line duration. **Vertical Drop** splits each character into a separate line with `\pos` — though it may misbehave with emojis or composed Unicode.
 
-### Requisitos
+### Circular
 
-1.  **FFmpeg:** Deve estar instalado e adicionado ao `PATH` do sistema.
-2.  **vadflux.exe:** Necessário para a Detecção de Atividade de Voz (VAD) e análise de Fluxo Espectral.
-3.  **Script Gerador:** Use o `LazyTimer_Gen.bat` incluso (antigo `RT 3.bat`).
+Arranges text along a curve. The line needs both `\pos` (start point) and `\org` (circle centre). Three rotation modes: **Normal** (letters follow the curve), **Inverted** (180° flip), and **Vertical** (letters stay upright). Adjustable radius modifier and kerning. Spaces are filtered out automatically.
 
-### Como gerar os logs
+### Focus (Blur & Glow)
 
-Incluímos um script em lote (`LazyTimer_Gen.bat`) que automatiza a parte chata. Ele faz o pré-processamento de áudio (filtros highpass/lowpass e normalização dinâmica) antes da análise para garantir um timing preciso.
+Multi-layer blur and glow effects. **Blur+Glow** adds a glowing aura behind text, **Blur+Layers** creates border-only layers without glow. Configurable intensity, opacity, and glow colour. **Double layer** adds an extra border layer for depth. **Fix Fades** corrects `\fad` timing across all generated layers with an adjustable offset.
 
-1.  Jogue seu arquivo de vídeo/áudio, o `vadflux.exe` e o script `.bat` na mesma pasta.
-2.  Rode o script `.bat`.
-3.  **Input 1:** Digite o nome do arquivo (ex: `video.mp4`).
-4.  **Input 2:** Digite o número do capítulo ou prefixo (ex: `01`).
-5.  Espere o processo terminar. O script vai gerar:
-    * `*_30.txt`, `*_40.txt`, `*_50.txt` (Logs de silêncio em diferentes limiares de dB).
-    * `*_vad.tsv` (Dados de VAD).
-    * `*_flux.tsv` (Dados de Fluxo Espectral).
+### Borders
 
-### Uso no Aegisub
+Creates up to 4 stacked border layers with individual size and colour. Borders accumulate from innermost to outermost, and the original text sits on top with `\bord0`.
 
-1.  Abra **Chronorow Master** > **LazyTimer**.
-2.  **Modo Cluster (Recomendado):** Clique nos botões para carregar os arquivos `-30dB`, `-40dB` e `-50dB`.
-    * *(Opcional, mas recomendado)*: Carregue os arquivos `.tsv` quando pedir VAD/Flux para melhorar a precisão.
-3.  **Modo Tabela:** Requer apenas um arquivo de silêncio (geralmente o de `-40dB`).
-4.  Aperte **Run** e veja ele retimar suas linhas.
+### Mass-Signs
+
+A tag-preserving bulk editor for sign typesetting. Groups lines with identical visible text, presents them side by side (original vs. modified), and applies changes to all matching lines at once. Options to skip vector drawings (`\p1`) and cap character length.
+
+### Standalone Macros
+
+Perspective, Masks, Scale, Circular, Focus, Vertical Drop, Mass-Signs, and all five Tools are individually registered under `Kite-Macros/Utility/` using your saved settings.
 
 ---
 
-## Kite Styles Manager v3.4
+## Zheus Colormaster
 
-O **Kite Styles Manager** automatiza a gestão de cores por ator nos arquivos ASS dentro do Aegisub. Ele permite aplicar cores via tags ou estilos clonados, caça inconsistências e mantém a paleta uniforme ao longo dos episódios.
+The colour management suite. Handles everything from per-actor colour assignment to animated gradients and visual effects, with a built-in Lua console.
 
-### Funcionalidades Principais
+### Chroma Manager
 
-| Macro | Descrição |
-|-------|-----------|
-| **Gerenciar Cores** | Painel principal para atribuir ou editar cores por ator. Escolha entre aplicar tags ou clonar estilos. |
-| **Caçar Conflitos** | Detecta atores com cores inconsistentes (primário, borda, sombra, etc.). |
-| **Limpar Tags** | Remove seletivamente as tags de cor indicadas. |
-| **Análise Detalhada** | Relatório por ator: contagem de linhas, cores em uso e taxas de contraste (WCAG). |
-| **Converter Estilos → Tags** | Insere as cores definidas no estilo diretamente na linha como tags. |
-| **Converter Tags → Estilos** | Cria um estilo clone ("BaseStyle_Ator") e move as cores da tag para a definição do estilo. |
-| **Importar / Exportar** | Salva ou carrega suas atribuições de cor de um arquivo `.txt`. |
+The main panel. Scans the selection, groups lines by Actor, and shows their `\c`, `\3c`, and `\4c` colours with a live contrast ratio indicator. Contrast is checked between primary and border colours following WCAG-style luminance ratios — icons flag critical (`⛔ <2.5`), low, or passing (`✓ ≥4.5`) contrast.
 
-### Novidades na v3.4
-* Suporte total a tags `vc()` do VSFilterMod.
-* Detecção automática de conflitos e cálculo de contraste.
-* Importação e exportação de paletas em `.txt`.
-* Criação automática de estilos clone por ator.
+Three output modes: **Tags** injects colour overrides into the text, **Styles** creates new ASS styles per actor with the chosen colours, and **Clean** strips all colour tags. A conflict report detects mixed colours within the same actor. Paginated UI for large casts.
 
----
+Supports **Export/Import** of colour databases as plain-text files, so you can reuse colour schemes across projects.
 
-# ESPAÑOL
+### VSFilterMod / 4-Corner Manager
 
-## Chronorow Master v2.0
+Dedicated panel for `\1vc`, `\3vc`, and `\4vc` four-corner gradient tags (requires VSFilterMod or xy-VSFilter). Each actor gets four colour pickers per corner. Detects and reports mixed VSF/non-VSF usage across actors.
 
-**Chronorow Master** es la "navaja suiza" definitiva para Aegisub. Combina verificación de timing, división inteligente de texto y herramientas de edición masiva en una macro robusta. La versión 2.0 integra la suite **Hot Dog Utils** y **Marabunta** directamente en la interfaz, además de añadir **LazyTimer** para flujos de timing automatizados.
+### Spectrum Gradient
 
-### Herramientas de Timing y Texto
+Gradient from 2 to 5 colours across lines or individual characters. Three modes: **Line** assigns one colour per line, **Character** assigns one per letter (Unicode-aware), and **GBC** (Gradient by Character) interpolates between existing `\c` tags already in the text — it reads whatever colour blocks you've placed and fills the gaps. Supports `\c`, `\2c`, `\3c`, and `\4c`.
 
-| Herramienta | Qué hace |
-|-------------|----------|
-| **Keyframe Seal [KF]** | Te planta una etiqueta `[KF-E]` (final) o `[KF-S]` (inicio) si la línea clava exactamente el keyframe. |
-| **Twin / Miss KF** | Marca `[Twin]` si hay otro KF justo antes, o `[Miss]` si se te escapó un KF cercano. |
-| **Overtime / Overlap** | Señala líneas que duran demasiado o se pisan con otras. |
-| **Lazy Timer** | **¡Nuevo!** Magia de auto-timing usando archivos de detección de silencio (modos Cluster o Tabla). |
-| **Divine Dividing** | Corta frases en la puntuación (.?!) o comas y reparte el tiempo proporcionalmente. |
-| **Line Cleaver \N** | Hacha las líneas en los saltos `\N` y divide la duración equitativamente. |
-| **Kana-Beat {\k}** | Genera etiquetas de karaoke `{\k}` a partir de texto en romaji. |
-| **CPS Ranker / Avg** | Ordena líneas por velocidad (Car/Seg) y calcula la media de la selección. |
-| **Gap Marker** | Rastrea los "blinks" (esos huecos minúsculos y molestos) entre subtítulos. |
-| **Extract KFs** | Ayuda a ejecutar FFmpeg + SCXvid para generar el log de keyframes. |
+### Kinetic Transform
 
-### Hot Dog Utils (Suite de Edición)
-*Marca la casilla "Doggo Mode" para ejecutar SOLO la herramienta Hot Dog seleccionada. Esto ignora el resto de ajustes de timing.*
+Generates `\t()` animations over ASS properties (`\fscx`, `\fscy`, `\frz`, `\bord`, `\blur`, `\alpha`, `\fsp`). Configurable start/end values, number of steps, acceleration curve, yoyo mode (alternates direction on even steps), time-based step calculation, and start offset in milliseconds.
 
-| Utilidad | Descripción |
-|----------|-------------|
-| **LeBlanc Six** | Salto de línea inteligente basado en el ancho real del vídeo. |
-| **Style Sentinel** | Filtra tu selección por Estilo (te permite conservar estilos específicos y purgar el resto). |
-| **Caption Clarifier** | Limpia el desorden: elimina corchetes, paréntesis y espacios extra. |
-| **Time Picker** | Selecciona líneas de diálogo activas en un rango de tiempo específico (ignora comentarios). |
-| **Extract / Reinsert Tags** | Mueve etiquetas `{...}` al campo *Effect* para que edites texto sin miedo, luego las devuelve. |
-| **Blank Eraser** | Borra líneas vacías que no tienen texto visible. |
-| **Add \an8** | Forma rápida de pegar la etiqueta `{\an8}` (alineación superior) a las líneas seleccionadas. |
-| **Punctuation** | Añade los signos invertidos (¡! ¿?) al texto automáticamente. |
+### KColor (Kinetic Colour)
 
-### Marabunta (Sincro e Importación)
-El devorador de contenido. Pega líneas `Dialogue:` de otro script para sincronizar datos basándose en la superposición de tiempo.
+Animated colour transitions using `\t()`. Pick a start and end colour, choose the tag (`\c`, `\2c`, `\3c`, `\4c`), and it shares the same step/accel/yoyo/time/offset controls as Kinetic Transform.
 
-| Modo | Función |
-|------|--------|
-| **Ant Effects** | Le roba el campo *Effect* a las líneas pegadas si coinciden en tiempo. |
-| **Ant Lines** | Pilla el *Texto* de las líneas pegadas (opción de envolver como `{comentarios}`). |
-| **Ant Actor** | Asigna el campo *Actor* basándose en la superposición temporal. |
+### 4-Corner Gradient
+
+Injects four-corner gradient tags directly. Pick colours for each corner (top-left, top-right, bottom-left, bottom-right), choose the tag (`\1vc` through `\4vc`), and optionally clean previous `\vc` tags.
+
+### Colour Replace
+
+Scans the selection for every unique colour, shows a before/after colour picker for each one, and replaces across all lines — including inside `\vc()` tags.
+
+### Lua Console
+
+A sandboxed Lua environment with access to `subs`, `sel`, `meta`, `styles`, `karaskel`, `aegisub`, and the full `Z` module. Useful for quick batch operations without writing a separate script.
+
+### FX Tools
+
+Quick effects, most of which require a loaded video (position the playhead at the desired frame before running).
+
+**One Color** — `\t()` transition to a single colour from the current frame. **To Style** — reverse transition from a flat colour back to the style's original colours. **Split Line** — splits a line at a `|` marker at the current frame, hiding the second half on the first segment. **Split Line Fad** — same split but with a `\fad(250,0)` crossfade on the second segment. **V-Shake / H-Shake** — screen-shake using `\org` + alternating `\frz`, configurable interval. **Flashback** — adds `\fad(200,200)`. **Scale Up / Scale Down** — animated scale (110% / 90%) from the current frame.
+
+### Standalone Macros
+
+Chroma Manager, Gradient by Char (GBC), Colour Replace, and all FX tools are individually registered under `Kite-Macros/Utility/`.
 
 ---
 
-## Configuración de LazyTimer
+## Hotkeys
 
-**LazyTimer** es el motor de esta suite, pero necesita gasolina. Depende de logs pre-generados de silencio y actividad de voz para tomar decisiones. Sin esos archivos, no arranca.
+Every core function from all three scripts is registered as a standalone macro under `Kite-Macros/Utility/`. This means you can bind hotkeys to any of them through Aegisub's `Preferences > Hotkeys` menu — and you really should. The main dialogs are fine for exploring features, but once you know what you need, running Kite Timing, Perspective, or GBC from a hotkey is considerably faster than navigating through menus every time.
 
-### Requisitos
+Standalone macros use your saved settings (from Config / Remember / Save respectively), so you configure once in the main dialog and then just fire the hotkey. This is the intended workflow: set up your parameters, save them, and from then on it's one keypress.
 
-1.  **FFmpeg:** Debe estar instalado y añadido al `PATH` del sistema.
-2.  **vadflux.exe:** Necesario para la Detección de Actividad de Voz (VAD) y análisis de Flujo Espectral.
-3.  **Script Generador:** Usa el `LazyTimer_Gen.bat` incluido (antes `RT 3.bat`).
+The full list of individually registered macros:
 
-### Cómo generar los logs
+### From Chronorow Master
 
-Hemos incluido un script por lotes (`LazyTimer_Gen.bat`) que automatiza lo tedioso. Realiza pre-procesamiento de audio (filtros highpass/lowpass y normalización dinámica) antes del análisis para asegurar un timing preciso.
+`Extract Tags` · `Reinsert Tags` · `Kite Timing (Lead-in/out + KF Snap)` · `Copy Times` · `Swap Comment` · `Blank Eraser` · `Join Same Text` · `Time Picker` · `Style Sentinel` · `Caption Clarifier` · `LeBlanc Six` · `Sort by Length` · `Mark Uppercase` · `Add an8` · `Copy Fold Group` · `Double Italics` · `Frame to Effect` · `Import Text (Source Timing)` · `Ellipsis Eraser` · `Actor Parser (Split & Format)` · `AE Keyframe Export (Full Data)` · `Stutter Generator (L-Lword)` · `Actor Manager (Rename/Merge)` · `Remplacer (Text Replacer)` · `Punctuation/Exclamation` · `Punctuation/Question` · `Punctuation/Both`
 
-1.  Tira tu archivo de vídeo/audio, el `vadflux.exe` y el script `.bat` en la misma carpeta.
-2.  Ejecuta el script `.bat`.
-3.  **Input 1:** Introduce el nombre del archivo (ej: `video.mp4`).
-4.  **Input 2:** Introduce el número de capítulo o prefijo (ej: `01`).
-5.  Espera a que termine el proceso. El script generará:
-    * `*_30.txt`, `*_40.txt`, `*_50.txt` (Logs de silencio a diferentes umbrales de dB).
-    * `*_vad.tsv` (Datos de VAD).
-    * `*_flux.tsv` (Datos de Flujo Espectral).
+### From Rhearow Master
 
-### Uso en Aegisub
+`Perspective` · `Masks` · `Scale` · `Circular` · `Focus` · `Text - Vertical Drop` · `Mass-Signs` · `Tools/Copy Persp (Project)` · `Tools/Copy Persp (Exact)` · `Tools/Copy Clip` · `Tools/Clip to iClip` · `Tools/iClip to Clip`
 
-1.  Abre **Chronorow Master** > **LazyTimer**.
-2.  **Modo Cluster (Recomendado):** Haz clic en los botones para cargar los archivos `-30dB`, `-40dB` y `-50dB`.
-    * *(Opcional pero recomendado)*: Carga los archivos `.tsv` cuando pida VAD/Flux para mejorar la precisión.
-3.  **Modo Tabla:** Requiere solo un archivo de silencio (usualmente el de `-40dB`).
-4.  Dale a **Run** y mira cómo retimea tus líneas.
+### From Zheus Colormaster
+
+`Chroma Manager` · `Gradient by Char (GBC)` · `Reemplazar Colores` · `FX/One Color (Gold)` · `FX/To Style (Gold)` · `FX/Split Line` · `FX/Split Line Fad` · `FX/V-Shake` · `FX/H-Shake` · `FX/Flashback` · `FX/Scale Up` · `FX/Scale Down`
 
 ---
 
-## Kite Styles Manager v3.4
+## Installation
 
-**Kite Styles Manager** automatiza la gestión de colores por actor en archivos ASS dentro de Aegisub. Permite aplicar colores mediante tags o estilos clonados, detecta inconsistencias y mantiene una paleta uniforme a lo largo de los episodios.
+1. Copy the `.lua` files into your Aegisub automation directory:
+   - **Windows**: `%APPDATA%\Aegisub\automation\autoload\`
+   - **macOS**: `~/Library/Application Support/Aegisub/automation/autoload/`
+   - **Linux**: `~/.aegisub/automation/autoload/`
+2. Restart Aegisub (or reload automations from the menu).
+3. The scripts appear under `Kite-Macros/` in the Automation menu.
 
-### Funcionalidades principales
+All three scripts are independent — install whichever ones you need.
 
-| Macro | Descripción |
-|-------|-------------|
-| **Gestionar colores** | Panel principal para asignar o editar colores por actor. Elige entre aplicar tags o clonar estilos. |
-| **Buscar conflictos** | Detecta actores con colores incoherentes (primario, contorno, sombra, etc.). |
-| **Limpiar tags** | Elimina selectivamente los tags de color indicados. |
-| **Análisis detallado** | Informe por actor: número de líneas, colores en uso y relación de contraste (WCAG). |
-| **Convertir estilos → tags** | Inserta en cada diálogo los colores definidos en su estilo como tags. |
-| **Convertir tags → estilos** | Crea estilos clon ("EstiloBase_Actor") y traslada los colores de los tags a la definición del estilo. |
-| **Importar / Exportar** | Guarda o carga asignaciones de color desde un archivo `.txt`. |
+### Dependencies
 
-### Novedades en v3.4
-* Soporte completo para tags `vc()` de VSFilterMod.
-* Detección de conflictos y cálculo automático de contraste.
-* Importación y exportación de paletas en `.txt`.
-* Creación automática de estilos clon por actor.
+- **Aegisub 3.2.2+** (required for `aegisub.project_properties`)
+- **karaskel** (bundled with Aegisub)
+- **FFmpeg** — Required for LazyTimer silence detection (Chronorow). Generate silence logs with something like `ffmpeg -i audio.wav -af silencedetect=n=-30dB:d=0.3 -f null - 2> silence_30.txt`. Path configured in Config.
+- **A VAD tool** (e.g. Silero VAD, pyannote, or any tool that outputs a TSV with `start\tend` columns) — Optional but recommended for LazyFusion mode. Without VAD data, LazyFusion relies solely on silence detection and loses its main advantage over the other modes.
+- **SCXvid** — Required only for Extract KF (Chronorow). Path configured in Config.
+- **VSFilterMod** or **xy-VSFilter** — Required only for 4-corner gradient tags (Zheus).
+
+### Configuration
+
+Each script saves its settings to a config file in your Aegisub user directory:
+
+- `chronorow_config.lua` — language, KPP values, Kite Timing parameters, LazyTimer, Gap Marker
+- `rhearow.conf` — all panel defaults, language
+- `zheus_config.lua` — dashboard values, last-used colours
+- `maya_masks.txt` — custom Rhearow masks
+
+---
+
+## Licence
+
+These scripts are provided as-is for the fansubbing community. Do whatever you like with them.
+
+---
+
+*Kiterow*
