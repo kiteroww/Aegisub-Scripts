@@ -32,6 +32,12 @@ FFmpeg, SCXvid, audio/video media, or timing-analysis files are feature-specific
 - `arch.Perspective` 1.2.1
 - Optional: `SubInspector.Inspector` 0.6.0
 
+## AddTexture
+
+- `ZF.main` 2.3.0
+- `l0.ASSFoundation` 0.5.0
+- `a-mo.ConfigHandler` 1.1.4
+
 ## Zheus Colormanager
 
 Zheus declares no additional modules. DependencyControl is used only as the update mechanism and macro registrar.

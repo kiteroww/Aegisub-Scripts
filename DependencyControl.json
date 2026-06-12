@@ -81,6 +81,28 @@
       },
       "changelog": { "1.6.0": ["Current Gradient Row release."] }
     },
+    "kite.AddTexture": {
+      "url": "@{baseUrl}/blob/main/Macros/kite.AddTexture.moon",
+      "author": "Kiterow",
+      "name": "AddTexture",
+      "description": "Apply pasted ASS drawing textures clipped to selected text outlines",
+      "channels": {
+        "main": {
+          "version": "2.0.1",
+          "released": "2026-06-12",
+          "default": true,
+          "files": [
+            { "name": ".moon", "url": "@{fileBaseUrl}@{fileName}", "sha1": "2ECBD325CA21EE24AC9EFC7C3BD6390D4F666123" }
+          ],
+          "requiredModules": [
+            { "moduleName": "ZF.main", "version": "2.3.0", "url": "https://github.com/TypesettingTools/zeref-Aegisub-Scripts", "feed": "https://raw.githubusercontent.com/TypesettingTools/zeref-Aegisub-Scripts/main/DependencyControl.json" },
+            { "moduleName": "l0.ASSFoundation", "version": "0.5.0", "url": "https://github.com/TypesettingTools/ASSFoundation", "feed": "https://raw.githubusercontent.com/TypesettingTools/ASSFoundation/master/DependencyControl.json" },
+            { "moduleName": "a-mo.ConfigHandler", "version": "1.1.4", "url": "https://github.com/TypesettingTools/Aegisub-Motion", "feed": "https://raw.githubusercontent.com/TypesettingTools/Aegisub-Motion/DepCtrl/DependencyControl.json" }
+          ]
+        }
+      },
+      "changelog": { "2.0.1": ["Current AddTexture release."] }
+    },
     "kite.Zheus": {
       "url": "@{baseUrl}/blob/main/Macros/kite.Zheus.lua",
       "author": "Kiterow",
