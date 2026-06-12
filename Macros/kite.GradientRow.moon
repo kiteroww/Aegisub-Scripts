@@ -2,7 +2,7 @@ export script_name = "Gradient Row"
 export script_description = "Create adaptive color gradients across selected lines and visible text from palettes or inline color states."
 export script_author = "Kiterow"
 export script_namespace = "kite.GradientRow"
-export script_version = "1.6.0"
+export script_version = "1.6.1"
 
 DependencyControl = require "l0.DependencyControl"
 depctrl = DependencyControl{
@@ -49,6 +49,21 @@ read_slots = (res) ->
       slots[slot] = res[slot] and true or false
   slots
 
+normalize_gui_color = (value) ->
+  value = tostring value or ""
+  r, g, b = value\match "^#(%x%x)(%x%x)(%x%x)$"
+  if r
+    return ("#%s%s%s")\format r\upper!, g\upper!, b\upper!
+  hex = value\match "&[Hh](%x+)&?"
+  if hex
+    hex = hex\sub -6
+    if #hex == 6
+      b = hex\sub 1, 2
+      g = hex\sub 3, 4
+      r = hex\sub 5, 6
+      return ("#%s%s%s")\format r\upper!, g\upper!, b\upper!
+  nil
+
 normalize_state = (state) ->
   state or= {}
   state.mode or= "Horizontal"
@@ -69,7 +84,11 @@ normalize_state = (state) ->
       state.slots[slot] = defaults[slot]
     else
       state.slots[slot] = state.slots[slot] and true or false
-  state.colors = state.colors or {"#FFFFFF", "#FF0000"}
+  colors = {}
+  for color in *(state.colors or {})
+    normalized = normalize_gui_color color
+    colors[#colors + 1] = normalized if normalized
+  state.colors = colors
   if #state.colors < 2
     state.colors = {"#FFFFFF", "#FF0000"}
   state
@@ -130,7 +149,8 @@ load_state = ->
       when "angle" then loaded.angle = tonumber value
       when "colors"
         for color in value\gmatch "[^,]+"
-          loaded.colors[#loaded.colors + 1] = color if color\match "^#%x%x%x%x%x%x$"
+          normalized = normalize_gui_color color
+          loaded.colors[#loaded.colors + 1] = normalized if normalized
       else
         if slot = key\match "^slot_(.+)$"
           loaded.slots[slot] = value == "true"
@@ -1139,7 +1159,7 @@ collect_active_slots = (slots) ->
   window_error "Select at least one color slot." if #active == 0
   active
 
-build_gui = (state, x = 0) ->
+build_gui = (state, x = 8.5) ->
   state = normalize_state state
   gui = {
     {class: "label", label: "Gradient Type:", :x, y: 0}

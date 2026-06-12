@@ -8,7 +8,7 @@ A collection of Aegisub automation scripts for timing, quality control, typesett
 | --- | --- | --- | --- |
 | Chrono Suite | 1.0.0 | `Chrono Suite` | English, Spanish, Portuguese |
 | Rhea Signs | 1.0.0 | `Rhea Signs` | English, Spanish, Portuguese |
-| Gradient Row | 1.6.0 | `Gradient Row` | English |
+| Gradient Row | 1.6.1 | `Gradient Row` | English |
 | AddTexture | 2.0.1 | `AddTexture` | English |
 | Zheus Colormanager | 4.2.0 | `Zheus Colormanager` | Spanish |
 

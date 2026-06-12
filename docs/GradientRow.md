@@ -1,4 +1,4 @@
-# Gradient Row 1.6.0
+# Gradient Row 1.6.1
 
 Gradient Row creates adaptive ASS color gradients across selected lines or visible characters.
 
@@ -17,4 +17,4 @@ Namespace: `kite.GradientRow`
 
 Gradient Row can use rectangular clips, vector clips, ASSFoundation bounds, perspective-projected geometry, optional SubInspector bounds, and text-size fallbacks. Output uses standard ASS color and clip tags rather than VSFilterMod `vc` tags.
 
-The macro stores its local interface state in `kite.GradientRow.conf` and registers through DependencyControl while retaining its selection validator.
+The macro stores its local interface state in `kite.GradientRow.conf`, preserves saved palette colors, and registers through DependencyControl while retaining its selection validator.
