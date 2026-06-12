@@ -9,7 +9,7 @@ A collection of Aegisub automation scripts for timing, quality control, typesett
 | Chrono Suite | 1.0.0 | `Chrono Suite` |
 | Rhea Signs | 1.0.0 | `Rhea Signs` |
 | Gradient Row | 1.6.0 | `Gradient Row` |
-| Zheus Colormanager | 4.1 | `Zheus Colormanager` |
+| Zheus Colormanager | 4.2.0 | `Zheus Colormanager` |
 
 ## Installation
 

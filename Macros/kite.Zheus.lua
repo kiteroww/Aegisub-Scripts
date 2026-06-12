@@ -1,11 +1,16 @@
 script_name        = "Zheus Colormanager"
 script_description = "Gestor de color por actor, VSF y paletas accesibles"
 script_author      = "Kiterow"
-script_version     = "4.1"
+script_version     = "4.2.0"
 script_namespace   = "kite.Zheus"
 
 local DependencyControl = require("l0.DependencyControl")
 local depRec = DependencyControl{
+    name = script_name,
+    description = script_description,
+    author = script_author,
+    version = script_version,
+    namespace = script_namespace,
     feed = "https://raw.githubusercontent.com/kiteroww/Aegisub-Scripts/main/DependencyControl.json",
 }
 
@@ -1139,7 +1144,7 @@ function ColorReplacer.run(subs, sel, cfg)
     while true do
         local found = anySlotSelected(slots) and ColorReplacer.collect(subs, sel, slots) or {}
         local g = {
-            { class = "label", label = "Reemplazar colores", x = 0, y = 0, width = 8 },
+            { class = "label", label = "Cambio de colores", x = 0, y = 0, width = 8 },
             { class = "label", label = "Slots activos: " .. slotFilterLabel(slots), x = 0, y = 1, width = 8 },
             { class = "checkbox", name = "replace_slot_1", label = "\\c",  value = slots["1"], x = 0, y = 2, width = 2 },
             { class = "checkbox", name = "replace_slot_2", label = "\\2c", value = slots["2"], x = 2, y = 2, width = 2 },
@@ -2958,9 +2963,9 @@ function Config.save(t)
 end
 
 local HELP_TEXT = [[
-ZHEUS COLORMANAGER 4.1 · GUÍA DE USO
+ZHEUS COLORMANAGER 4.2.0 · GUÍA DE USO
 
-Gestor de color por actor para Aegisub. La interfaz se compone de un panel principal y cinco diálogos auxiliares: Gestor Chroma, Gestor 4 Esquinas (VSF), Aplicar VSF, Reemplazar Colores y Accesibilidad. Todas las operaciones actúan sobre la selección actual y reconocen tanto colores sólidos (\c, \2c, \3c, \4c) como degradados VSFilterMod (\1vc, \2vc, \3vc, \4vc).
+Gestor de color por actor para Aegisub. La interfaz se compone de un panel principal y cinco diálogos auxiliares: Gestor Chroma, Gestor 4 Esquinas (VSF), Aplicar VSF, Cambio de colores y Accesibilidad. Todas las operaciones actúan sobre la selección actual y reconocen tanto colores sólidos (\c, \2c, \3c, \4c) como degradados VSFilterMod (\1vc, \2vc, \3vc, \4vc).
 
 1. PANEL PRINCIPAL
 Muestra un informe de la selección y concentra el acceso a los demás diálogos. El informe se compone de:
@@ -2974,11 +2979,11 @@ Botones disponibles:
 
 1.5. Gestor: abre el editor de colores por actor.
 1.6. Aplicar VSF: aplica los degradados \1vc, \2vc, \3vc y \4vc.
-1.7. Reemplazar: detecta colores únicos en los slots marcados y permite cambiarlos.
+1.7. Cambio de colores: detecta colores únicos en los slots marcados y permite cambiarlos.
 1.8. Daltonismo: abre los perfiles de remapeo accesible.
 1.9. Ayuda: esta pantalla.
 
-Aplicar VSF, Reemplazar y Daltonismo cierran el panel cuando la operación termina con éxito. La auditoría completa de accesibilidad ya no vive en el panel: está en Daltonismo, dropdown Auditar (primera opción), pulsando Aplicar.
+Aplicar VSF, Cambio de colores y Daltonismo cierran el panel cuando la operación termina con éxito. La auditoría completa de accesibilidad ya no vive en el panel: está en Daltonismo, dropdown Auditar (primera opción), pulsando Aplicar.
 
 2. GESTOR CHROMA
 Recolecta los colores de relleno, borde y sombra por actor a partir de la selección y permite reasignarlos uno a uno.
@@ -3016,7 +3021,7 @@ Aplica los degradados a las líneas seleccionadas:
 
 Exclusividad automática: al aplicar un \Nvc se elimina cualquier \Nc y \Nvc previo del mismo slot. \vc y \c nunca conviven en un mismo slot.
 
-5. REEMPLAZAR COLORES
+5. CAMBIO DE COLORES
 Detecta los colores únicos de la selección y muestra pickers para cambiarlos. Soporta colores sólidos (\c, \2c, \3c, \4c) y de VSFilterMod (\1vc, \2vc, \3vc, \4vc).
 Los checkboxes \c, \2c, \3c y \4c controlan tanto lo que aparece en la lista como lo que puede cambiarse. Volver regresa al panel sin aplicar; Aplicar cierra solo si al menos una línea cambia.
 Tras el reemplazo, las variantes \1c y \c se colapsan a una única forma normalizada y los duplicados dentro del mismo bloque desaparecen.
@@ -3127,7 +3132,7 @@ function SelectionReport.format(subs, sel)
     w("")
     w("COLORES DETECTADOS")
     w("--------------------------------------------------")
-    w(string.format("  Sólidos (\\c, \\2c, \\3c, \\4c) : %d", solidCount))
+    w(string.format("  Sólidos (\\c, \\2c, \\3c, \\4c)  : %d", solidCount))
     w(string.format("  VSFilterMod (\\vc)            : %d", vsfCount))
     w(string.format("  Total único                  : %d", solidCount + vsfCount))
     if stats.anyVSF and stats.anySolid then
@@ -3184,7 +3189,7 @@ end
 
 local function addReplaceSlotControls(ui, cfg, baseY)
     local slots = slotFilterFromConfig(cfg)
-    table.insert(ui, { class = "label", label = "Reemplazar slots:", x = 0, y = baseY, width = 3 })
+    table.insert(ui, { class = "label", label = "Slots para cambiar:", x = 0, y = baseY, width = 3 })
     table.insert(ui, { class = "checkbox", name = "replace_slot_1", label = "\\c",  value = slots["1"], x = 3, y = baseY, width = 2 })
     table.insert(ui, { class = "checkbox", name = "replace_slot_2", label = "\\2c", value = slots["2"], x = 5, y = baseY, width = 2 })
     table.insert(ui, { class = "checkbox", name = "replace_slot_3", label = "\\3c", value = slots["3"], x = 7, y = baseY, width = 2 })
@@ -3245,7 +3250,7 @@ local function MainController(subs, sel, init_mode, data_in, actors_in)
 
         if mode == "DASH" then
             ui = buildVSFGradientPanel(cfg, getAuditText(), status)
-            btns = { "Gestor", "Aplicar VSF", "Reemplazar", "Daltonismo", "Ayuda" }
+            btns = { "Gestor", "Aplicar VSF", "Cambio de colores", "Daltonismo", "Ayuda", "Cancelar" }
         elseif mode == "ARCH" then
             ui, shown = ManagerDialog.build(page, PER_PAGE, actors, data, nil, nil)
             local y = 3 + (shown or 0)
@@ -3274,7 +3279,7 @@ local function MainController(subs, sel, init_mode, data_in, actors_in)
         end
 
         local btn, res = aegisub.dialog.display(ui, btns)
-        if not btn then break end
+        if not btn or btn == "Cancelar" then break end
         res = res or {}
 
         if mode == "ARCHVSF" and res.vctag and res.vctag ~= displayedVSFTag then
@@ -3394,23 +3399,23 @@ local function MainController(subs, sel, init_mode, data_in, actors_in)
                 cfg = Config.load()
                 status = (n or 0) .. " líneas con tags VSF aplicadas."
             end
-        elseif btn == "Reemplazar" then
+        elseif btn == "Cambio de colores" then
             local n, err, action, replaceCfg = ColorReplacer.run(subs, sel, res)
             if replaceCfg then
                 Config.save(replaceCfg)
                 cfg = Config.load()
             end
             if err then
-                status = "Reemplazar: " .. err
+                status = "Cambio de colores: " .. err
             elseif n > 0 then
                 aegisub.set_undo_point("Zheus Color Replace")
                 return
             elseif action == "back" then
-                status = "Reemplazar: volvió sin aplicar."
+                status = "Cambio de colores: volvió sin aplicar."
             elseif action == "cancel" then
-                status = "Reemplazar: cancelado."
+                status = "Cambio de colores: cancelado."
             elseif action == "nochange" then
-                status = "Reemplazar: sin cambios."
+                status = "Cambio de colores: sin cambios."
             else
                 status = "Cambios aplicados: 0."
             end
@@ -3448,16 +3453,16 @@ local function openVSFManagerDirect(subs, sel)
 end
 
 local function runColorReplaceDirect(subs, sel)
-    if not sel or #sel == 0 then showMsg("Selecciona líneas para reemplazar colores."); return end
+    if not sel or #sel == 0 then showMsg("Selecciona líneas para cambiar colores."); return end
     local cfg = Config.load()
     local n, err, action, replaceCfg = ColorReplacer.run(subs, sel, cfg)
     if replaceCfg then Config.save(replaceCfg) end
-    if err then showMsg("Reemplazar: " .. err); return end
+    if err then showMsg("Cambio de colores: " .. err); return end
     if n and n > 0 then
         aegisub.set_undo_point("Zheus Color Replace")
-        showMsg(n .. " líneas reemplazadas.")
+        showMsg(n .. " líneas actualizadas.")
     elseif action == "nochange" then
-        showMsg("Reemplazar: sin cambios.")
+        showMsg("Cambio de colores: sin cambios.")
     end
 end
 
@@ -3705,7 +3710,7 @@ depRec:registerMacros({
     { MENU_PATH,                                   script_description,                    MainController },
     { MENU_PATH .. "/Gestor de colores",           "Abrir gestor de color por actor",     openChromaManagerDirect },
     { MENU_PATH .. "/Gestor 4 esquinas (VSF)",      "Abrir gestor 4 esquinas por actor",   openVSFManagerDirect },
-    { MENU_PATH .. "/Reemplazar colores",          "Buscar y reemplazar colores",         runColorReplaceDirect },
+    { MENU_PATH .. "/Cambio de colores",           "Buscar y cambiar colores",            runColorReplaceDirect },
     { ACCESS_MENU .. "/Auditar selección",         "Auditar accesibilidad de color",       openAccessibilityAudit },
     { ACCESS_MENU .. "/Aplicar Daltonismo",        "Aplicar perfil Daltonismo",            _macroApply("DALTONICO") },
     { ACCESS_MENU .. "/Aplicar Universal",         "Aplicar perfil Universal accesible",   _macroApply("UNIVERSAL_SAFE") },

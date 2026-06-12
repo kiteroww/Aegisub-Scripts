@@ -88,15 +88,15 @@
       "description": "Gestor de color por actor, VSF y paletas accesibles",
       "channels": {
         "main": {
-          "version": "4.1",
+          "version": "4.2.0",
           "released": "2026-06-12",
           "default": true,
           "files": [
-            { "name": ".lua", "url": "@{fileBaseUrl}@{fileName}", "sha1": "46C7780584561DAF1DB6EE7E5F5791BDAA3571C6" }
+            { "name": ".lua", "url": "@{fileBaseUrl}@{fileName}", "sha1": "0C96F2A69873245CBAB910ECCB88E9171C15FC33" }
           ]
         }
       },
-      "changelog": { "4.1": ["Current Zheus Colormanager release."] }
+      "changelog": { "4.2.0": ["Updated color-change workflow labels and main panel controls."] }
     }
   },
   "modules": {}
