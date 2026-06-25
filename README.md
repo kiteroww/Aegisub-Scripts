@@ -12,7 +12,7 @@ A collection of Aegisub automation scripts for timing, quality control, typesett
 | Field Group Manager | 1.0.3 | `Field Group Manager` | English |
 | Gradient Row | 1.6.1 | `Gradient Row` | English |
 | Moka Shape | 0.1.1 | `Moka Shape` | English |
-| PNG2ASS | 1.0.5 | `PNG2ASS` | English |
+| PNG2ASS | 1.1.1 | `PNG2ASS` | English |
 | Rhea Signs | 1.0.2 | `Rhea Signs` | English, Spanish, Portuguese |
 | Snapshoter | 1.2.1 | `Snapshoter` | English |
 | Zheus Colormanager | 4.4.1 | `Zheus Colormanager` | Spanish |

@@ -331,14 +331,14 @@
       "description": "Convert PNG images into ASS drawing lines",
       "channels": {
         "main": {
-          "version": "1.0.5",
-          "released": "2026-06-24",
+          "version": "1.1.1",
+          "released": "2026-06-25",
           "default": true,
           "files": [
             {
               "name": ".lua",
               "url": "@{fileBaseUrl}@{fileName}",
-              "sha1": "59FAFC1AD3F0790DA4E242D479525D5051A595F5"
+              "sha1": "0658F23326D6037A7C519483872B23D944E7036E"
             }
           ],
           "requiredModules": [
@@ -352,6 +352,9 @@
         }
       },
       "changelog": {
+        "1.1.1": [
+          "Added multi-image sequence conversion, white-matte detection, and frame-boundary timing."
+        ],
         "1.0.5": [
           "Initial PNG2ASS release."
         ]

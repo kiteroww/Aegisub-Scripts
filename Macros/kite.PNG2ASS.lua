@@ -1,7 +1,7 @@
 script_name        = "PNG2ASS"
 script_description = "Convert PNG images into ASS drawing lines"
 script_author      = "Kiterow"
-script_version     = "1.0.5"
+script_version     = "1.1.1"
 script_namespace   = "kite.PNG2ASS"
 
 local PNG2ASS = {}
@@ -60,7 +60,7 @@ local DEFAULTS = {
     python = "python",
     install_source = default_install_source,
     engine = "auto",
-    mode = "alpha",
+    mode = "auto",
     threshold = 50,
     p_scale = 4,
     simplify = 1.0,
@@ -75,7 +75,7 @@ local DEFAULTS = {
 }
 
 local ENGINES = { "auto", "vtracer", "opencv" }
-local MODES = { "alpha", "luma", "color" }
+local MODES = { "auto", "alpha", "white-matte", "dark-matte", "luma", "color" }
 local POSITIONS = { "0,0", "Active pos", "Manual" }
 local COLORS = { "style", "source" }
 
@@ -366,18 +366,24 @@ end
 function temp_paths()
     local stamp = os.date("%Y%m%d%H%M%S") .. "_" .. tostring(math.random(100000, 999999))
     local out_name = "png2ass_" .. stamp .. ".txt"
+    local list_name = "png2ass_" .. stamp .. ".list"
+    local sequence_name = "png2ass_" .. stamp .. ".seq"
     local log_name = "png2ass_" .. stamp .. ".log"
     local cmd_log_name = "png2ass_" .. stamp .. ".cmd.log"
     local out_path = decoded_path("?temp/" .. out_name)
+    local list_path = decoded_path("?temp/" .. list_name)
+    local sequence_path = decoded_path("?temp/" .. sequence_name)
     local log_path = decoded_path("?temp/" .. log_name)
     local cmd_log_path = decoded_path("?temp/" .. cmd_log_name)
-    if out_path and log_path and cmd_log_path then
-        return { out = out_path, log = log_path, cmdlog = cmd_log_path }
+    if out_path and list_path and sequence_path and log_path and cmd_log_path then
+        return { out = out_path, list = list_path, sequence = sequence_path, log = log_path, cmdlog = cmd_log_path }
     end
     local temp = join_path(script_dir(), "temp")
     ensure_dir(temp)
     return {
         out = out_path or join_path(temp, out_name),
+        list = list_path or join_path(temp, list_name),
+        sequence = sequence_path or join_path(temp, sequence_name),
         log = log_path or join_path(temp, log_name),
         cmdlog = cmd_log_path or join_path(temp, cmd_log_name),
     }
@@ -396,19 +402,45 @@ local function copy_line(line)
     return out
 end
 
-local function select_png()
-    local path = aegisub.dialog.open(
-        "Select PNG",
+local function natural_key(path)
+    local name = tostring(path or ""):match("([^\\/]+)$") or tostring(path or "")
+    name = name:lower()
+    return name:gsub("(%d+)", function(number)
+        return string.format("%012d", tonumber(number) or 0)
+    end)
+end
+
+local function normalize_paths(value)
+    local paths = {}
+    if type(value) == "table" then
+        for _, path in ipairs(value) do
+            if type(path) == "string" and trim(path) ~= "" then
+                paths[#paths + 1] = path
+            end
+        end
+    elseif type(value) == "string" and trim(value) ~= "" then
+        paths[#paths + 1] = value
+    end
+    table.sort(paths, function(left, right)
+        return natural_key(left) < natural_key(right)
+    end)
+    return paths
+end
+
+local function select_pngs()
+    local result = aegisub.dialog.open(
+        "Select PNG Images",
         "",
         script_dir(),
         "PNG files (.png)|*.png",
-        false,
+        true,
         true
     )
-    if not path then
+    local paths = normalize_paths(result)
+    if #paths == 0 then
         aegisub.cancel()
     end
-    return path
+    return paths
 end
 
 local function package_config_dialog(title, buttons)
@@ -477,9 +509,13 @@ local function check_package_main()
     end
 end
 
-local function create_dialog(line, cfg)
+local function create_dialog(line, cfg, image_count, frame_count)
     local px, py = active_pos(line.text)
     local default_position = (px and py) and "Active pos" or DEFAULTS.position
+    local count_label = "Images: " .. tostring(image_count or 1)
+    if frame_count then
+        count_label = count_label .. " / Frames: " .. tostring(frame_count)
+    end
     local interface = {
         title = { class = "label", label = "PNG2ASS", x = 0, y = 0, width = 6, height = 1 },
         engine_label = { class = "label", label = "Engine", x = 0, y = 1, width = 2, height = 1 },
@@ -508,9 +544,10 @@ local function create_dialog(line, cfg)
         blur = { class = "floatedit", name = "blur", value = DEFAULTS.blur, min = 0, max = 20, step = 0.1, x = 2, y = 5, width = 2, height = 1 },
         max_label = { class = "label", label = "Max chars", x = 4, y = 5, width = 2, height = 1 },
         max_chars = { class = "intedit", name = "max_chars", value = DEFAULTS.max_chars, min = 1000, max = 2000000, x = 6, y = 5, width = 3, height = 1 },
-        python_label = { class = "label", label = "Python", x = 0, y = 6, width = 2, height = 1 },
-        python = { class = "edit", name = "python", value = cfg.python, x = 2, y = 6, width = 11, height = 1 },
-        save_config = { class = "checkbox", name = "save_config", label = "Save", value = false, x = 13, y = 6, width = 2, height = 1 },
+        count_label = { class = "label", label = count_label, x = 0, y = 6, width = 15, height = 1 },
+        python_label = { class = "label", label = "Python", x = 0, y = 7, width = 2, height = 1 },
+        python = { class = "edit", name = "python", value = cfg.python, x = 2, y = 7, width = 11, height = 1 },
+        save_config = { class = "checkbox", name = "save_config", label = "Save", value = false, x = 13, y = 7, width = 2, height = 1 },
     }
     local button, result = aegisub.dialog.display(interface, { "Insert", "Cancel" }, { ok = "Insert", close = "Cancel" })
     if button ~= "Insert" then
@@ -552,6 +589,35 @@ local function build_command(paths, png_path, options, pos_x, pos_y, allow_many_
     return table.concat(parts, " ")
 end
 
+local function build_sequence_command(paths, options, pos_x, pos_y, allow_many_lines)
+    local parts = {
+        command_program(options.python),
+        "-m", module_name,
+        "--input-list", shell_quote(paths.list),
+        "--mode", shell_quote(options.mode),
+        "--engine", shell_quote(options.engine),
+        "--threshold", tostring(options.threshold),
+        "--p-scale", tostring(options.p_scale),
+        "--simplify", tostring(options.simplify),
+        "--min-area", tostring(options.min_area),
+        "--max-chars", tostring(options.max_chars),
+        "--filter-speckle", tostring(options.filter_speckle),
+        "--pos-x", tostring(pos_x),
+        "--pos-y", tostring(pos_y),
+        "--blur", tostring(options.blur),
+        "--sequence-out", shell_quote(paths.sequence),
+        "--log", shell_quote(paths.log),
+        "--quiet",
+    }
+    if options.color == "source" or options.mode == "color" then
+        parts[#parts + 1] = "--keep-color"
+    end
+    if allow_many_lines then
+        parts[#parts + 1] = "--allow-many-lines"
+    end
+    return table.concat(parts, " ")
+end
+
 local function resolve_position(options, line)
     if options.position == "Active pos" then
         local px, py = active_pos(line.text)
@@ -576,6 +642,152 @@ local function insert_shapes(subs, index, ass_lines)
     return new_sel
 end
 
+local function selected_dialogue_indices(subs, sel)
+    local indices = {}
+    for _, index in ipairs(sel or {}) do
+        local line = subs[index]
+        if line and line.class == "dialogue" then
+            indices[#indices + 1] = index
+        end
+    end
+    table.sort(indices)
+    return indices
+end
+
+local function round_to_cs(time)
+    time = tonumber(time) or 0
+    return (time + 5) - ((time + 5) % 10)
+end
+
+local function build_frame_jobs(subs, sel)
+    if not aegisub.frame_from_ms or not aegisub.ms_from_frame then
+        return nil, "A loaded video is required to map images to frames."
+    end
+
+    local jobs = {}
+    local indices = selected_dialogue_indices(subs, sel)
+    if #indices == 0 then
+        return nil, "Select at least one dialogue line."
+    end
+
+    for _, index in ipairs(indices) do
+        local line = subs[index]
+        local start_frame = aegisub.frame_from_ms(round_to_cs(line.start_time))
+        local end_frame = aegisub.frame_from_ms(round_to_cs(line.end_time))
+        if not start_frame or not end_frame then
+            return nil, "Could not read frame timing from the selected lines."
+        end
+        if end_frame <= start_frame then
+            return nil, "Selected line " .. tostring(index) .. " is shorter than one frame."
+        end
+
+        for frame = start_frame, end_frame - 1 do
+            local start_ms = aegisub.ms_from_frame(frame)
+            local end_ms = aegisub.ms_from_frame(frame + 1)
+            if not start_ms or not end_ms then
+                return nil, "Could not convert frame timing to milliseconds."
+            end
+            if end_ms <= start_ms then
+                return nil, "Invalid frame timing at frame " .. tostring(frame) .. "."
+            end
+            jobs[#jobs + 1] = {
+                index = index,
+                line = line,
+                frame = frame,
+                start_time = start_ms,
+                end_time = end_ms,
+                sequence_index = #jobs + 1,
+            }
+        end
+    end
+
+    if #jobs == 0 then
+        return nil, "The selected lines do not cover any frames."
+    end
+    return jobs
+end
+
+local function read_sequence(path)
+    local content = read_file(path)
+    if not content then
+        return nil, "Sequence output was not created."
+    end
+
+    local rows = {}
+    for line in (content .. "\n"):gmatch("([^\r\n]*)\r?\n") do
+        rows[#rows + 1] = line
+    end
+    if trim(rows[1]) ~= "PNG2ASS_SEQUENCE 1" then
+        return nil, "Sequence output has an unsupported format."
+    end
+
+    local frames = {}
+    local i = 2
+    while i <= #rows do
+        local row = trim(rows[i])
+        if row == "" then
+            i = i + 1
+        else
+            local frame_index = tonumber(row:match("^FRAME%s+(%d+)$"))
+            if not frame_index then
+                return nil, "Sequence output is malformed near line " .. tostring(i) .. "."
+            end
+            i = i + 1
+            local count = tonumber(trim(rows[i] or ""):match("^LINES%s+(%d+)$"))
+            if not count then
+                return nil, "Sequence output is missing a line count for frame " .. tostring(frame_index) .. "."
+            end
+            i = i + 1
+            local ass_lines = {}
+            for _ = 1, count do
+                if i > #rows then
+                    return nil, "Sequence output ended before frame " .. tostring(frame_index) .. " was complete."
+                end
+                ass_lines[#ass_lines + 1] = rows[i]
+                i = i + 1
+            end
+            frames[frame_index] = ass_lines
+        end
+    end
+
+    return frames
+end
+
+local function insert_sequence_shapes(subs, jobs, frames)
+    local groups = {}
+    local indices = {}
+    for _, job in ipairs(jobs) do
+        if not groups[job.index] then
+            groups[job.index] = {}
+            indices[#indices + 1] = job.index
+        end
+        groups[job.index][#groups[job.index] + 1] = job
+    end
+    table.sort(indices, function(left, right)
+        return left > right
+    end)
+
+    for _, index in ipairs(indices) do
+        local insert_at = index
+        local inserted = 0
+        for _, job in ipairs(groups[index]) do
+            local ass_lines = frames[job.sequence_index]
+            if not ass_lines or #ass_lines == 0 then
+                cancel_with("Missing converted shape for frame " .. tostring(job.sequence_index) .. ".")
+            end
+            for _, ass_text in ipairs(ass_lines) do
+                local new_line = copy_line(job.line)
+                new_line.layer = (tonumber(job.line.layer) or 0) + 1
+                new_line.start_time = job.start_time
+                new_line.end_time = job.end_time
+                new_line.text = ass_text
+                subs.insert(insert_at + inserted + 1, new_line)
+                inserted = inserted + 1
+            end
+        end
+    end
+end
+
 function PNG2ASS.main(subs, sel, active_line)
     if not sel or #sel == 0 then
         cancel_with("Select one dialogue line first.")
@@ -590,43 +802,95 @@ function PNG2ASS.main(subs, sel, active_line)
         cancel_with("Select one dialogue line first.")
     end
     local cfg = read_config()
-    local png_path = select_png()
-    local options = create_dialog(line, cfg)
+    local image_paths = select_pngs()
+    local frame_jobs = nil
+    if #image_paths > 1 then
+        local err
+        frame_jobs, err = build_frame_jobs(subs, sel)
+        if not frame_jobs then
+            cancel_with(err)
+        end
+        if #image_paths ~= #frame_jobs then
+            cancel_with("Image count does not match selected frame count.\n\nImages: " .. tostring(#image_paths) .. "\nFrames: " .. tostring(#frame_jobs))
+        end
+    end
+
+    local options = create_dialog(line, cfg, #image_paths, frame_jobs and #frame_jobs or nil)
     if options.save_config then
         cfg.python = options.python
         write_config(cfg)
     end
     local paths = temp_paths()
     local pos_x, pos_y = resolve_position(options, line)
-    local command = build_command(paths, png_path, options, pos_x, pos_y, false)
+
+    if #image_paths == 1 then
+        local command = build_command(paths, image_paths[1], options, pos_x, pos_y, false)
+        local ok = run_command(command, paths.cmdlog)
+        local ass_lines = read_lines(paths.out)
+        if not ok or not ass_lines or #ass_lines == 0 then
+            local log = read_file(paths.log)
+            if not log or trim(log) == "" then
+                log = read_file(paths.cmdlog)
+            end
+            if continue_after_many_lines(log) then
+                command = build_command(paths, image_paths[1], options, pos_x, pos_y, true)
+                ok = run_command(command, paths.cmdlog)
+                ass_lines = read_lines(paths.out)
+                if not ok or not ass_lines or #ass_lines == 0 then
+                    log = read_file(paths.log)
+                    if not log or trim(log) == "" then
+                        log = read_file(paths.cmdlog)
+                    end
+                end
+            end
+            if not ok or not ass_lines or #ass_lines == 0 then
+                if log and trim(log) ~= "" then
+                    cancel_with(log)
+                end
+                cancel_with("PNG conversion failed. Use Check Package or Install/Update Package.")
+            end
+        end
+        local new_sel = insert_shapes(subs, index, ass_lines)
+        aegisub.set_undo_point(script_name)
+        return new_sel
+    end
+
+    write_file(paths.list, table.concat(image_paths, "\n"))
+    local command = build_sequence_command(paths, options, pos_x, pos_y, false)
     local ok = run_command(command, paths.cmdlog)
-    local ass_lines = read_lines(paths.out)
-    if not ok or not ass_lines or #ass_lines == 0 then
+    local frames, parse_error = read_sequence(paths.sequence)
+    if not ok or not frames then
         local log = read_file(paths.log)
         if not log or trim(log) == "" then
             log = read_file(paths.cmdlog)
         end
         if continue_after_many_lines(log) then
-            command = build_command(paths, png_path, options, pos_x, pos_y, true)
+            command = build_sequence_command(paths, options, pos_x, pos_y, true)
             ok = run_command(command, paths.cmdlog)
-            ass_lines = read_lines(paths.out)
-            if not ok or not ass_lines or #ass_lines == 0 then
+            frames, parse_error = read_sequence(paths.sequence)
+            if not ok or not frames then
                 log = read_file(paths.log)
                 if not log or trim(log) == "" then
                     log = read_file(paths.cmdlog)
                 end
             end
         end
-        if not ok or not ass_lines or #ass_lines == 0 then
+        if not ok or not frames then
             if log and trim(log) ~= "" then
                 cancel_with(log)
             end
-            cancel_with("PNG conversion failed. Use Check Package or Install/Update Package.")
+            cancel_with(parse_error or "PNG sequence conversion failed. Use Check Package or Install/Update Package.")
         end
     end
-    local new_sel = insert_shapes(subs, index, ass_lines)
+
+    for i = 1, #frame_jobs do
+        if not frames[i] or #frames[i] == 0 then
+            cancel_with("Missing converted shape for frame " .. tostring(i) .. ".")
+        end
+    end
+    insert_sequence_shapes(subs, frame_jobs, frames)
     aegisub.set_undo_point(script_name)
-    return new_sel
+    return sel
 end
 
 function PNG2ASS.can_run(subs, sel)

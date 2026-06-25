@@ -51,7 +51,7 @@ Field Group Manager declares no additional modules. DependencyControl is used as
 ## PNG2ASS
 
 - `aka.command` 1.0.2
-- External Python package: `ass_png2ass`
+- External Python package: `ass-png2ass` (module: `ass_png2ass`)
 
 ## Rhea Signs
 
